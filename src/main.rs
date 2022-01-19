@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate glium;
 
-use crate::material::Simple;
+use crate::material::{PBRParams, Phong, Simple, PBR};
 use crate::model::Model;
 use crate::shape::Shape;
 use crate::support::System;
@@ -43,6 +43,12 @@ fn main() {
 
     let simple = Simple::load_from_fs(&*display.display);
     let mut simple2 = simple.clone();
+    let mut phong = Phong::load_from_fs(&*display.display);
+    phong.set_light_pos([1.4, 0.4, -0.7]);
+
+    let mut pbr = PBR::load_from_fs(&*display.display);
+    pbr.set_light_pos([1.4, 0.4, 20.0]);
+    pbr.set_pbr_params(PBRParams::sample());
 
     println!(
         "{}, {}",
@@ -62,18 +68,25 @@ fn main() {
 
     let mut shape2 = Shape::square(3.0, &*display.display, simple2.clone());
 
-    let mut mando = Model::load_from_fs(
-        "./Mandalorian.obj".into(),
-        &*display.display,
-        simple.clone(),
-    )
-    .unwrap();
+    let mut mando = Model::load_from_fs("./Mandalorian.obj".into(), &*display.display, pbr.clone());
+    //let mut mando =
+    //Model::load_from_fs("./Mandalorian.obj".into(), &*display.display, phong.clone()).unwrap();
 
     //shape.relative_move([0.0, 0.0, 3.0]);
     //shape2.relative_move([0.0, 0.0, 3.1]);
-    mando.relative_move([0.0, 0.0, 10.0]);
+    mando.relative_move([0.0, -13.0, 70.0]);
+    mando.relative_rotate([Rad(0.0), Rad(std::f32::consts::PI), Rad(0.0)]);
 
-    let rotation = RPM * 60.0;
+    *mando.get_segments_mut()[5]
+        .get_material_mut()
+        .get_pbr_params_mut() = PBRParams::metal();
+
+    mando.get_segments_mut()[5]
+        .get_material_mut()
+        .get_pbr_params_mut()
+        .metallic = 0.0;
+
+    let rotation = RPM * 20.0;
 
     let mut camera_pos = [0.0, 0.0, 0.0];
 
@@ -103,7 +116,7 @@ fn main() {
             };
 
             scene.set_camera(camera.into());
-            camera_pos[2] -= 0.005 * delta_ms;
+            //camera_pos[2] -= 0.005 * delta_ms;
             scene.set_camera_pos(camera_pos);
 
             shape.render(&mut scene);
@@ -112,10 +125,11 @@ fn main() {
 
             scene.finish(frame);
 
-            shape.relative_move([0.0, 0.0, 0.005 * delta_ms]);
-            shape.relative_rotate([Rad(0.0), Rad(0.0), Rad(-rotation * delta_ms)]);
-            shape2.relative_move([0.0, 0.0, 0.005 * delta_ms]);
-            mando.relative_move([0.0, 0.0, 0.005 * delta_ms]);
+            //shape.relative_move([0.0, 0.0, 0.005 * delta_ms]);
+            //shape.relative_rotate([Rad(0.0), Rad(0.0), Rad(-rotation * delta_ms)]);
+            //shape2.relative_move([0.0, 0.0, 0.005 * delta_ms]);
+            //mando.relative_move([0.0, 0.0, 0.005 * delta_ms]);
+            //mando.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
         },
     );
     println!("Hello, world!");
