@@ -3,36 +3,21 @@ extern crate glium;
 
 use crate::material::{PBRParams, Phong, Simple, PBR};
 use crate::model::Model;
+use crate::pbr_model::PbrModel;
 use crate::shape::Shape;
 use crate::support::System;
 use crate::{glium::Surface, renderer::Renderer};
-use cgmath::{vec3, Rad};
+use cgmath::Rad;
 use glium::backend::Facade;
 use material::Material;
 
 pub mod material;
 pub mod model;
+pub mod pbr_model;
 pub mod renderer;
 pub mod shape;
 pub mod support;
 pub mod vertex;
-
-fn create_grid(width: u32, height: u32, facade: &impl Facade, material: Simple) -> Vec<Shape> {
-    let x_mid = (width / 2) as i32;
-    let y_mid = (height / 2) as i32;
-    let x_start = -x_mid;
-    let y_start = -y_mid;
-    let mut shapes = Vec::new();
-    for i in 0..height {
-        for j in 0..width {
-            let mut shape = Shape::square(1.0, facade, material.clone());
-            shape.relative_move([x_start as f32 + j as f32, y_start as f32 + i as f32, 0.0]);
-            shapes.push(shape);
-        }
-    }
-
-    shapes
-}
 
 const RPM: f32 = std::f32::consts::PI * 2.0 / 60.0 / 1000.0;
 
@@ -47,8 +32,8 @@ fn main() {
     phong.set_light_pos([1.4, 0.4, -0.7]);
 
     let mut pbr = PBR::load_from_fs(&*display.display);
-    pbr.set_light_pos([1.4, 0.4, 20.0]);
-    pbr.set_pbr_params(PBRParams::sample());
+    pbr.set_light_pos([1.4, 0.4, -0.7]);
+    pbr.set_pbr_params(PBRParams::metal());
 
     println!(
         "{}, {}",
@@ -64,27 +49,24 @@ fn main() {
         simple.equal(&simple2)
     );
 
-    let mut shape = Shape::square(1.0, &*display.display, simple.clone());
+    let mut mando = PbrModel::load_from_fs(
+        "./Mandalorian_New.obj".into(),
+        &*display.display,
+        pbr.clone(),
+    );
 
-    let mut shape2 = Shape::square(3.0, &*display.display, simple2.clone());
-
-    let mut mando = Model::load_from_fs("./Mandalorian.obj".into(), &*display.display, pbr.clone());
-    //let mut mando =
-    //Model::load_from_fs("./Mandalorian.obj".into(), &*display.display, phong.clone()).unwrap();
-
-    //shape.relative_move([0.0, 0.0, 3.0]);
-    //shape2.relative_move([0.0, 0.0, 3.1]);
-    mando.relative_move([0.0, -13.0, 70.0]);
+    //mando.relative_move([0.0, -20.0, 70.0]);
+    mando.relative_move([0.0, 0.0, 1.0]);
     mando.relative_rotate([Rad(0.0), Rad(std::f32::consts::PI), Rad(0.0)]);
 
-    *mando.get_segments_mut()[5]
-        .get_material_mut()
-        .get_pbr_params_mut() = PBRParams::metal();
+    //*mando.get_segments_mut()[5]
+    //.get_material_mut()
+    //.get_pbr_params_mut() = PBRParams::metal();
 
-    mando.get_segments_mut()[5]
-        .get_material_mut()
-        .get_pbr_params_mut()
-        .metallic = 0.0;
+    //mando.get_segments_mut()[5]
+    //.get_material_mut()
+    //.get_pbr_params_mut()
+    //.metallic = 0.0;
 
     let rotation = RPM * 20.0;
 
@@ -119,8 +101,8 @@ fn main() {
             //camera_pos[2] -= 0.005 * delta_ms;
             scene.set_camera_pos(camera_pos);
 
-            shape.render(&mut scene);
-            shape2.render(&mut scene);
+            //shape.render(&mut scene);
+            //shape2.render(&mut scene);
             mando.render(&mut scene);
 
             scene.finish(frame);

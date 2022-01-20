@@ -55,7 +55,7 @@ pub struct Model<T: Material> {
 
 impl<T: Material> Model<T> {
     pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: T) -> Self {
-        let (models, _materials) = tobj::load_obj(
+        let (models, materials) = tobj::load_obj(
             path.as_os_str().to_str().unwrap(),
             &LoadOptions {
                 single_index: true,
@@ -64,6 +64,12 @@ impl<T: Material> Model<T> {
             },
         )
         .unwrap();
+
+        if materials.is_ok() {
+            println!("{} materials", materials.unwrap().len());
+        } else {
+            println!("error {}", materials.unwrap_err());
+        }
 
         let mut segments = Vec::new();
 
