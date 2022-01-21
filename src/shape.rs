@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use crate::material::Material;
 use crate::renderer::RenderScene;
 use crate::vertex::Vertex;

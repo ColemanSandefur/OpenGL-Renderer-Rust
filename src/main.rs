@@ -1,21 +1,21 @@
 #[macro_use]
 extern crate glium;
 
-use crate::material::{PBRParams, Phong, Simple, PBR};
-use crate::model::Model;
+use crate::material::{Basic, PBRParams, Phong, Simple, SkyboxMat, PBR};
 use crate::pbr_model::PbrModel;
-use crate::shape::Shape;
+use crate::skybox::Skybox;
 use crate::support::System;
 use crate::{glium::Surface, renderer::Renderer};
 use cgmath::Rad;
-use glium::backend::Facade;
 use material::Material;
 
+pub mod basic_model;
 pub mod material;
 pub mod model;
 pub mod pbr_model;
 pub mod renderer;
 pub mod shape;
+pub mod skybox;
 pub mod support;
 pub mod vertex;
 
@@ -26,6 +26,9 @@ fn main() {
 
     let renderer = Renderer::new((*display.display).clone());
 
+    let skybox_mat = SkyboxMat::load_from_fs(&display, "./skybox/skybox/front.jpg");
+    let skybox = Skybox::new(&*display.display, skybox_mat);
+
     let simple = Simple::load_from_fs(&*display.display);
     let mut simple2 = simple.clone();
     let mut phong = Phong::load_from_fs(&*display.display);
@@ -34,6 +37,9 @@ fn main() {
     let mut pbr = PBR::load_from_fs(&*display.display);
     pbr.set_light_pos([1.4, 0.4, -0.7]);
     pbr.set_pbr_params(PBRParams::metal());
+
+    let mut basic = Basic::load_from_fs(&*display.display);
+    basic.set_light_pos([1.4, 0.4, -0.7]);
 
     println!(
         "{}, {}",
@@ -49,26 +55,14 @@ fn main() {
         simple.equal(&simple2)
     );
 
-    let mut mando = PbrModel::load_from_fs(
-        "./Mandalorian_New.obj".into(),
-        &*display.display,
-        pbr.clone(),
-    );
+    let mut mando = PbrModel::load_from_fs2("./mando.glb".into(), &*display.display, pbr.clone());
+    //let mut mando =
+    //PbrModel::load_from_fs("./Mandalorian.obj".into(), &*display.display, pbr.clone());
 
-    //mando.relative_move([0.0, -20.0, 70.0]);
-    mando.relative_move([0.0, 0.0, 1.0]);
+    mando.relative_move([0.0, -1.0, 3.0]);
     mando.relative_rotate([Rad(0.0), Rad(std::f32::consts::PI), Rad(0.0)]);
 
-    //*mando.get_segments_mut()[5]
-    //.get_material_mut()
-    //.get_pbr_params_mut() = PBRParams::metal();
-
-    //mando.get_segments_mut()[5]
-    //.get_material_mut()
-    //.get_pbr_params_mut()
-    //.metallic = 0.0;
-
-    let rotation = RPM * 20.0;
+    let rotation = RPM * 10.0;
 
     let mut camera_pos = [0.0, 0.0, 0.0];
 
@@ -98,20 +92,14 @@ fn main() {
             };
 
             scene.set_camera(camera.into());
-            //camera_pos[2] -= 0.005 * delta_ms;
             scene.set_camera_pos(camera_pos);
 
-            //shape.render(&mut scene);
-            //shape2.render(&mut scene);
             mando.render(&mut scene);
+            skybox.render(&mut scene);
 
             scene.finish(frame);
 
-            //shape.relative_move([0.0, 0.0, 0.005 * delta_ms]);
-            //shape.relative_rotate([Rad(0.0), Rad(0.0), Rad(-rotation * delta_ms)]);
-            //shape2.relative_move([0.0, 0.0, 0.005 * delta_ms]);
-            //mando.relative_move([0.0, 0.0, 0.005 * delta_ms]);
-            //mando.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
+            mando.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
         },
     );
     println!("Hello, world!");

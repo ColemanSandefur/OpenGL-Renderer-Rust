@@ -14,6 +14,8 @@ uniform float metallic;
 uniform float roughness;
 uniform float ao;
 
+uniform sampler2D tex;
+
 const float PI = 3.14159265359;
 
 float DistributionGGX(vec3 N, vec3 H, float roughness) {

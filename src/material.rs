@@ -4,11 +4,13 @@ pub mod basic;
 pub mod pbr;
 pub mod phong;
 pub mod simple;
+pub mod skybox;
 
 pub use basic::*;
 pub use pbr::*;
 pub use phong::*;
 pub use simple::*;
+pub use skybox::*;
 
 pub trait Material: 'static {
     fn render<'a>(
@@ -36,4 +38,3 @@ pub trait Material: 'static {
     where
         Self: Sized;
 }
-

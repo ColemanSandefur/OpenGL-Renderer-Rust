@@ -1,3 +1,4 @@
+use crate::material::Basic;
 use crate::renderer::RenderScene;
 use cgmath::Matrix4;
 use cgmath::Rad;
@@ -7,18 +8,18 @@ use glium::{IndexBuffer, VertexBuffer};
 use std::path::PathBuf;
 use tobj::LoadOptions;
 
-use crate::{material::Material, vertex::Vertex};
+use crate::{vertex::Vertex};
 
-pub struct ModelSegment<T: Material> {
-    material: T,
+pub struct BasicModelSegment {
+    material: Basic,
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: IndexBuffer<u32>,
 }
-impl<T: Material> ModelSegment<T> {
+impl BasicModelSegment {
     pub fn new(
         vertex_buffer: VertexBuffer<Vertex>,
         index_buffer: IndexBuffer<u32>,
-        material: T,
+        material: Basic,
     ) -> Self {
         Self {
             vertex_buffer,
@@ -36,22 +37,22 @@ impl<T: Material> ModelSegment<T> {
         scene.publish(&self.vertex_buffer, &self.index_buffer, &self.material);
     }
 
-    pub fn get_material(&self) -> &T {
+    pub fn get_material(&self) -> &Basic {
         &self.material
     }
-    pub fn get_material_mut(&mut self) -> &mut T {
+    pub fn get_material_mut(&mut self) -> &mut Basic {
         &mut self.material
     }
 }
-pub struct Model<T: Material> {
-    material: T,
+pub struct BasicModel {
+    material: Basic,
     position: Vector3<f32>,
     rotation: Vector3<Rad<f32>>,
-    segments: Vec<ModelSegment<T>>,
+    segments: Vec<BasicModelSegment>,
 }
 
-impl<T: Material> Model<T> {
-    pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: T) -> Self {
+impl BasicModel {
+    pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: Basic) -> Self {
         let (models, materials) = tobj::load_obj(
             path.as_os_str().to_str().unwrap(),
             &LoadOptions {
@@ -62,16 +63,9 @@ impl<T: Material> Model<T> {
         )
         .unwrap();
 
-        if materials.is_ok() {
-            println!("{} materials", materials.unwrap().len());
-        } else {
-            println!("error {}", materials.unwrap_err());
-        }
-
         let mut segments = Vec::new();
 
         for model in models {
-            println!("{}", model.name);
             let mut vertices: Vec<Vertex> = Vec::new();
             let indices: Vec<u32> = model.mesh.indices;
 
@@ -93,6 +87,9 @@ impl<T: Material> Model<T> {
             // Load the normals for all veritces
             for triplet in 0..num_vertices {
                 let index = triplet * 3;
+                if model.mesh.normals.get(index).is_none() {
+                    break;
+                }
                 let x = model.mesh.normals[index];
                 let y = model.mesh.normals[index + 1];
                 let z = model.mesh.normals[index + 2];
@@ -112,10 +109,21 @@ impl<T: Material> Model<T> {
                     .unwrap();
             let vertex_buffer = VertexBuffer::new(facade, &vertices).unwrap();
 
-            segments.push(ModelSegment::new(
+            let mut new_material = material.clone();
+
+            if let Some(material_index) = model.mesh.material_id {
+                let given_material = materials.as_ref().unwrap().get(material_index).unwrap();
+                //material.get_pbr_params_mut().albedo = given_material.ambient.into();
+                new_material.get_material_params_mut().diffuse = given_material.diffuse.into();
+                new_material.get_material_params_mut().ambient = given_material.ambient.into();
+                new_material.get_material_params_mut().specular = given_material.specular.into();
+                new_material.get_material_params_mut().shininess = given_material.shininess.into();
+            }
+
+            segments.push(BasicModelSegment::new(
                 vertex_buffer,
                 index_buffer,
-                material.clone_sized(),
+                new_material,
             ));
         }
 
@@ -159,17 +167,17 @@ impl<T: Material> Model<T> {
         self.rotation[2] += rotation[2];
         self.build_matrix();
     }
-    pub fn get_material(&self) -> &T {
+    pub fn get_material(&self) -> &Basic {
         &self.material
     }
-    pub fn get_material_mut(&mut self) -> &mut T {
+    pub fn get_material_mut(&mut self) -> &mut Basic {
         &mut self.material
     }
 
-    pub fn get_segments(&self) -> &Vec<ModelSegment<T>> {
+    pub fn get_segments(&self) -> &Vec<BasicModelSegment> {
         &self.segments
     }
-    pub fn get_segments_mut(&mut self) -> &mut Vec<ModelSegment<T>> {
+    pub fn get_segments_mut(&mut self) -> &mut Vec<BasicModelSegment> {
         &mut self.segments
     }
 }
