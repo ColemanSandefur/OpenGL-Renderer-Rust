@@ -22,7 +22,7 @@ Below is what I have done so far:
 
 # Screenshots
 
-![Mandalorian](screenshots/Mandalorian.jpg)
+![Mandalorian](screenshots/Mandalorian.png)
 
 # Current architecture
 
