@@ -12,6 +12,8 @@ pub use phong::*;
 pub use simple::*;
 pub use skybox::*;
 
+use crate::renderer::SceneData;
+
 pub trait Material: 'static {
     fn render<'a>(
         &self,
@@ -20,6 +22,7 @@ pub trait Material: 'static {
         surface: &mut Frame,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
+        scene_data: &SceneData,
     );
 
     fn to_any(self) -> Box<dyn Any>;

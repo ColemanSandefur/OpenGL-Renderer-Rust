@@ -80,4 +80,8 @@ impl Skybox {
     pub fn render<'a>(&'a self, scene: &mut RenderScene<'a>) {
         scene.publish(&self.vertex_buffer, &self.index_buffer, &self.skybox);
     }
+
+    pub fn get_skybox(&self) -> &SkyboxMat {
+        &self.skybox
+    }
 }

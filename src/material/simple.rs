@@ -6,6 +6,8 @@ use std::any::Any;
 use std::sync::Arc;
 use std::{fs::File, io::Read};
 
+use crate::renderer::SceneData;
+
 use super::Material;
 
 #[derive(Clone)]
@@ -49,6 +51,7 @@ impl Material for Simple {
         surface: &mut Frame,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
+        _scene_data: &SceneData,
     ) {
         let uniforms = uniform! {
             material_color: self.color.clone(),
@@ -103,3 +106,4 @@ impl Material for Simple {
         self.clone()
     }
 }
+

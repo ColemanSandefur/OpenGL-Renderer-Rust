@@ -8,6 +8,8 @@ use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
 
+use crate::renderer::SceneData;
+
 use super::Material;
 
 #[derive(Clone)]
@@ -118,6 +120,7 @@ impl Material for PBR {
         surface: &mut Frame,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
+        scene_data: &SceneData,
     ) {
         let light_pos: [f32; 3] = self.light_pos.clone().into();
         let light_color: [f32; 3] = self.light_color.clone().into();
@@ -127,6 +130,7 @@ impl Material for PBR {
         let metallic = self.pbr_params.metallic;
         let roughness = self.pbr_params.roughness;
         let ao = self.pbr_params.ao;
+        let skybox = scene_data.get_skybox().unwrap().get_skybox().get_cubemap();
 
         let uniforms = uniform! {
             light_pos: light_pos,
@@ -138,6 +142,7 @@ impl Material for PBR {
             metallic: metallic,
             roughness: roughness,
             ao: ao,
+            skybox: &**skybox,
         };
 
         surface

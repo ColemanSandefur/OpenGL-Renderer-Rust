@@ -8,6 +8,8 @@ use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
 
+use crate::renderer::SceneData;
+
 use super::Material;
 
 #[derive(Clone, Copy)]
@@ -108,6 +110,7 @@ impl Material for Basic {
         surface: &mut Frame,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
+        _scene_data: &SceneData,
     ) {
         let light_pos: [f32; 3] = self.light_pos.clone().into();
         let light_color: [f32; 3] = self.light_color.clone().into();

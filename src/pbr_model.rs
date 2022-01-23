@@ -13,6 +13,9 @@ use tobj::LoadOptions;
 
 use crate::vertex::Vertex;
 
+// Model that uses the Physically Based Rendering shader
+
+// Models often consist of multiple smaller models, I am calling them segments
 pub struct PbrModelSegment {
     material: PBR,
     vertex_buffer: VertexBuffer<Vertex>,
@@ -30,6 +33,7 @@ impl PbrModelSegment {
             material,
         }
     }
+
     pub fn build_matrix(&mut self, model: Matrix4<f32>) {
         for vert in &mut *self.vertex_buffer.map() {
             vert.model = model.into();
@@ -47,6 +51,9 @@ impl PbrModelSegment {
         &mut self.material
     }
 }
+
+// The main model, this will control things that affect the whole model. You can also gain access
+// to the segments of the model if you wish.
 pub struct PbrModel {
     material: PBR,
     position: Vector3<f32>,
@@ -55,6 +62,7 @@ pub struct PbrModel {
 }
 
 impl PbrModel {
+    // Loads a glTF 2.0 (.glb) file
     pub fn load_from_fs2(path: PathBuf, facade: &impl Facade, material: PBR) -> Self {
         let scene = Scene::from_file(
             path.as_os_str().to_str().unwrap(),
@@ -74,10 +82,7 @@ impl PbrModel {
 
         let mut segments = Vec::new();
 
-        //println!("{:#?}", scene.materials);
-
         for mesh in scene.meshes {
-            //println!("{}", model.name);
             let mut vertices: Vec<Vertex> = Vec::new();
             let mut indices: Vec<u32> = Vec::new();
 
@@ -137,6 +142,8 @@ impl PbrModel {
             segments,
         }
     }
+
+    // Loads a Wavefront (.obj) file
     pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: PBR) -> Self {
         let (models, materials) = tobj::load_obj(
             path.as_os_str().to_str().unwrap(),
@@ -206,7 +213,6 @@ impl PbrModel {
 
             if let Some(material_index) = model.mesh.material_id {
                 let given_material = materials.as_ref().unwrap().get(material_index).unwrap();
-                //material.get_pbr_params_mut().albedo = given_material.ambient.into();
                 material.get_pbr_params_mut().albedo = given_material.diffuse.into();
             }
 

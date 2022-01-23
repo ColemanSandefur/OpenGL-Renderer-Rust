@@ -8,6 +8,8 @@ use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
 
+use crate::renderer::SceneData;
+
 use super::Material;
 
 #[derive(Clone)]
@@ -51,6 +53,7 @@ impl Material for Phong {
         surface: &mut Frame,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
+        _scene_data: &SceneData,
     ) {
         let light: [f32; 3] = self.light.clone().into();
         let uniforms = uniform! {
@@ -106,3 +109,4 @@ impl Material for Phong {
         self.clone()
     }
 }
+

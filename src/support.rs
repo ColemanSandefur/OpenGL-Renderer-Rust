@@ -38,6 +38,11 @@ impl System {
             Display::new(builder, context, &event_loop).expect("Failed to initialize display"),
         );
 
+        // Load raw opengl library for later use where glium doesn't provide needed functions
+        // Currently the only way to use cubemaps (that I can find) is to crate one with gl and
+        // then give it to glium
+        gl::load_with(|s| display.gl_window().get_proc_address(s));
+
         Self {
             event_loop,
             display,

@@ -14,7 +14,7 @@ uniform float metallic;
 uniform float roughness;
 uniform float ao;
 
-uniform sampler2D tex;
+uniform samplerCube skybox;
 
 const float PI = 3.14159265359;
 
@@ -65,27 +65,30 @@ void main() {
     
     vec3 Lo = vec3(0.0);
 
-    vec3 L = normalize(light_pos - v_world_pos);
-    vec3 H = normalize(V + L);
-    float distance = length(light_pos - v_world_pos);
-    float attenuation = 1.0 / (distance * distance);
-    vec3 radiance = light_color * attenuation;
+    // For each light
+    {
+        vec3 L = normalize(light_pos - v_world_pos);
+        vec3 H = normalize(V + L);
+        float distance = length(light_pos - v_world_pos);
+        float attenuation = 1.0 / (distance * distance);
+        vec3 radiance = light_color * attenuation;
 
-    float NDF = DistributionGGX(N, H, roughness); // Normal distribution function
-    float G = GeometrySmith(N, V, L, roughness); // Geometry function
-    vec3 F = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0); // Fresnel equation
+        float NDF = DistributionGGX(N, H, roughness); // Normal distribution function
+        float G = GeometrySmith(N, V, L, roughness); // Geometry function
+        vec3 F = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0); // Fresnel equation
 
-    vec3 numerator = NDF * G * F;
-    float denominator = 4.0 * max(dot(N,V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // +0.0001 prevents divide by zero
-    vec3 specular = numerator / denominator;
+        vec3 numerator = NDF * G * F;
+        float denominator = 4.0 * max(dot(N,V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // +0.0001 prevents divide by zero
+        vec3 specular = numerator / denominator;
 
-    vec3 kS = F; // Specular
-    vec3 kD = vec3(1.0) - kS; // Diffuse
-    kD *= 1.0 - metallic;
+        vec3 kS = F; // Specular
+        vec3 kD = vec3(1.0) - kS; // Diffuse
+        kD *= 1.0 - metallic;
 
-    float NdotL = max(dot(N, L), 0.0);
+        float NdotL = max(dot(N, L), 0.0);
 
-    Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+    }
 
     vec3 ambient = vec3(0.03) * albedo * ao;
 
