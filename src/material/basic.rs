@@ -1,8 +1,9 @@
+use crate::renderer::Renderable;
 use cgmath::Vector3;
 use glium::backend::Facade;
 use glium::index::IndicesSource;
 use glium::vertex::VerticesSource;
-use glium::{BackfaceCullingMode, DrawParameters, Frame, Program, Surface};
+use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
 use std::fs::File;
 use std::io::Read;
@@ -107,7 +108,7 @@ impl Material for Basic {
         &self,
         vertex_buffer: VerticesSource<'a>,
         index_buffer: IndicesSource<'a>,
-        surface: &mut Frame,
+        surface: &mut Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
         _scene_data: &SceneData,

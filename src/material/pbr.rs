@@ -2,13 +2,13 @@ use cgmath::Vector3;
 use glium::backend::Facade;
 use glium::index::IndicesSource;
 use glium::vertex::VerticesSource;
-use glium::{BackfaceCullingMode, DrawParameters, Frame, Program, Surface};
+use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
 use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
 
-use crate::renderer::SceneData;
+use crate::renderer::{Renderable, SceneData};
 
 use super::Material;
 
@@ -117,7 +117,7 @@ impl Material for PBR {
         &self,
         vertex_buffer: VerticesSource<'a>,
         index_buffer: IndicesSource<'a>,
-        surface: &mut Frame,
+        surface: &mut Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
         scene_data: &SceneData,
@@ -130,7 +130,8 @@ impl Material for PBR {
         let metallic = self.pbr_params.metallic;
         let roughness = self.pbr_params.roughness;
         let ao = self.pbr_params.ao;
-        let skybox = scene_data.get_skybox().unwrap().get_skybox().get_cubemap();
+        let skybox_obj = scene_data.get_skybox().unwrap();
+        let skybox = skybox_obj.get_skybox().get_cubemap();
 
         let uniforms = uniform! {
             light_pos: light_pos,
@@ -142,6 +143,7 @@ impl Material for PBR {
             metallic: metallic,
             roughness: roughness,
             ao: ao,
+            irradiance_map: skybox_obj.get_ibl().as_ref().unwrap(),
             skybox: &**skybox,
         };
 

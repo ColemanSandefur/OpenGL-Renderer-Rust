@@ -2,13 +2,13 @@ use cgmath::Vector3;
 use glium::backend::Facade;
 use glium::index::IndicesSource;
 use glium::vertex::VerticesSource;
-use glium::{BackfaceCullingMode, DrawParameters, Frame, Program, Surface};
+use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
 use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
 
-use crate::renderer::SceneData;
+use crate::renderer::{Renderable, SceneData};
 
 use super::Material;
 
@@ -50,7 +50,7 @@ impl Material for Phong {
         &self,
         vertex_buffer: VerticesSource<'a>,
         index_buffer: IndicesSource<'a>,
-        surface: &mut Frame,
+        surface: &mut Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
         _scene_data: &SceneData,
@@ -109,4 +109,3 @@ impl Material for Phong {
         self.clone()
     }
 }
-

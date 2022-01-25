@@ -1,4 +1,7 @@
 use cgmath::Rad;
+use glium::framebuffer::SimpleFrameBuffer;
+use glium::uniforms::Uniforms;
+use glium::vertex::MultiVerticesSource;
 use std::any::TypeId;
 use std::collections::HashMap;
 
@@ -6,10 +9,10 @@ use crate::material::Material;
 use crate::skybox::Skybox;
 use cgmath::Matrix4;
 use glium::index::IndicesSource;
-use glium::Frame;
 use glium::{vertex::VerticesSource, Display};
+use glium::{DrawError, DrawParameters, Frame, Program, Surface};
 
-// Holds special information about the renderer;
+// Holds special information about the renderer
 // I don't know if this will be needed, but it is here for future use if needed
 pub struct Renderer {
     display: Display,
@@ -34,7 +37,7 @@ pub struct RenderEntry<'a> {
 
 impl<'a> RenderEntry<'a> {
     // world is a transformation matrix
-    pub fn render(self, surface: &mut Frame, scene: &SceneData, world: [[f32; 4]; 4]) {
+    pub fn render(self, surface: &mut Renderable, scene: &SceneData, world: [[f32; 4]; 4]) {
         let camera = scene.camera;
 
         self.material.render(
@@ -139,7 +142,7 @@ impl<'a> RenderScene<'a> {
     }
 
     // Render all the items
-    pub fn finish(mut self, surface: &mut Frame) {
+    pub fn finish(mut self, surface: &mut Renderable) {
         let skybox = match &self.scene_data.skybox {
             Some(skybox) => self.entries.remove(&skybox.get_skybox().as_any().type_id()),
             None => None,
@@ -162,5 +165,46 @@ impl<'a> RenderScene<'a> {
                 entry.render(surface, &self.scene_data, world);
             }
         }
+    }
+}
+
+// Used for drawing with materials
+// Need to add the other implementors but too lazy right now.
+pub enum Renderable<'a> {
+    Frame(&'a mut Frame),
+    SimpleFrameBuffer(&'a mut SimpleFrameBuffer<'a>),
+}
+
+impl<'a> Renderable<'a> {
+    pub fn draw<'b, 'c, V, I, U>(
+        &mut self,
+        vertex: V,
+        index: I,
+        program: &Program,
+        uniforms: &U,
+        draw_parameters: &DrawParameters<'_>,
+    ) -> Result<(), DrawError>
+    where
+        V: MultiVerticesSource<'c>,
+        I: Into<IndicesSource<'b>>,
+        U: Uniforms,
+    {
+        match self {
+            Self::Frame(frame) => frame.draw(vertex, index, program, uniforms, draw_parameters),
+            Self::SimpleFrameBuffer(frame) => {
+                frame.draw(vertex, index, program, uniforms, draw_parameters)
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a mut Frame> for Renderable<'a> {
+    fn from(frame: &'a mut Frame) -> Self {
+        Self::Frame(frame)
+    }
+}
+impl<'a> From<&'a mut SimpleFrameBuffer<'a>> for Renderable<'a> {
+    fn from(frame: &'a mut SimpleFrameBuffer<'a>) -> Self {
+        Self::SimpleFrameBuffer(frame)
     }
 }

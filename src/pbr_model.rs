@@ -63,7 +63,7 @@ pub struct PbrModel {
 
 impl PbrModel {
     // Loads a glTF 2.0 (.glb) file
-    pub fn load_from_fs2(path: PathBuf, facade: &impl Facade, material: PBR) -> Self {
+    pub fn load_from_gltf(path: PathBuf, facade: &impl Facade, material: PBR) -> Self {
         let scene = Scene::from_file(
             path.as_os_str().to_str().unwrap(),
             vec![

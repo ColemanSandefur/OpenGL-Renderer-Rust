@@ -1,12 +1,9 @@
-use crate::renderer::SceneData;
+use crate::cubemap_loader::{CubemapLoader, CubemapType};
+use crate::renderer::{Renderable, SceneData};
 use glium::backend::Facade;
 use glium::index::IndicesSource;
-use glium::texture::SrgbCubemap;
-use glium::texture::{Dimensions, MipmapsOption};
 use glium::vertex::VerticesSource;
-use glium::{BackfaceCullingMode, DrawParameters, Frame, Program, Surface};
-use image::io::Reader as ImageReader;
-use image::GenericImageView;
+use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
 use std::fs::File;
 use std::io::Read;
@@ -18,11 +15,15 @@ use super::Material;
 #[derive(Clone)]
 pub struct SkyboxMat {
     program: Arc<Program>,
-    skybox: Arc<SrgbCubemap>,
+    skybox: Arc<CubemapType>,
 }
 
 impl SkyboxMat {
-    pub fn load_from_fs(facade: &impl Facade, path: impl Into<PathBuf>) -> Self {
+    pub fn load_from_fs(
+        facade: &impl Facade,
+        directory: impl Into<PathBuf>,
+        extension: &str,
+    ) -> Self {
         let mut vertex_shader_file = File::open("shaders/skybox/vertex.glsl").unwrap();
         let mut vertex_shader_src = String::new();
         vertex_shader_file
@@ -38,7 +39,37 @@ impl SkyboxMat {
             Program::from_source(facade, &vertex_shader_src, &fragment_shader_src, None).unwrap();
 
         println!("Loading cubemap");
-        let cubemap = load_cubemap(path.into(), facade);
+        //let cubemap = CubemapLoader::load_from_fs_hdr("hdr_cubemap/".into(), "hdr", facade);
+        let cubemap = CubemapLoader::load_from_fs_hdr(directory.into(), extension, facade);
+        println!("Finished loading cubemap");
+
+        Self {
+            program: Arc::new(program),
+            skybox: Arc::new(cubemap),
+        }
+    }
+    pub fn load_from_memory(
+        facade: &impl Facade,
+        images: Vec<Vec<f32>>,
+        width: u32,
+        height: u32,
+    ) -> Self {
+        let mut vertex_shader_file = File::open("shaders/skybox/vertex.glsl").unwrap();
+        let mut vertex_shader_src = String::new();
+        vertex_shader_file
+            .read_to_string(&mut vertex_shader_src)
+            .unwrap();
+        let mut fragment_shader_file = File::open("shaders/skybox/fragment.glsl").unwrap();
+        let mut fragment_shader_src = String::new();
+        fragment_shader_file
+            .read_to_string(&mut fragment_shader_src)
+            .unwrap();
+
+        let program =
+            Program::from_source(facade, &vertex_shader_src, &fragment_shader_src, None).unwrap();
+
+        println!("Loading cubemap");
+        let cubemap = CubemapLoader::load_from_memory_hdr(images, width, height, facade);
         println!("Finished loading cubemap");
 
         Self {
@@ -47,7 +78,28 @@ impl SkyboxMat {
         }
     }
 
-    pub fn get_cubemap(&self) -> &Arc<SrgbCubemap> {
+    pub fn load_from_cubemap(facade: &impl Facade, cubemap: CubemapType) -> Self {
+        let mut vertex_shader_file = File::open("shaders/skybox/vertex.glsl").unwrap();
+        let mut vertex_shader_src = String::new();
+        vertex_shader_file
+            .read_to_string(&mut vertex_shader_src)
+            .unwrap();
+        let mut fragment_shader_file = File::open("shaders/skybox/fragment.glsl").unwrap();
+        let mut fragment_shader_src = String::new();
+        fragment_shader_file
+            .read_to_string(&mut fragment_shader_src)
+            .unwrap();
+
+        let program =
+            Program::from_source(facade, &vertex_shader_src, &fragment_shader_src, None).unwrap();
+
+        Self {
+            program: Arc::new(program),
+            skybox: Arc::new(cubemap),
+        }
+    }
+
+    pub fn get_cubemap(&self) -> &Arc<CubemapType> {
         &self.skybox
     }
 }
@@ -56,7 +108,7 @@ impl Material for SkyboxMat {
         &self,
         vertex_buffer: VerticesSource<'a>,
         index_buffer: IndicesSource<'a>,
-        surface: &mut Frame,
+        surface: &mut Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
         _scene_data: &SceneData,
@@ -117,94 +169,5 @@ impl Material for SkyboxMat {
         Self: Sized,
     {
         self.clone()
-    }
-}
-
-// Creates a cubemap in raw opengl and then passes the id to glium for glium to manage.
-// I can't find any other way to create a cubemap in glium. This uses some C pointers so there is
-// a high likelihood that this is not robust and is quite easy to make the program panic
-fn load_cubemap(path: PathBuf, facade: &impl Facade) -> SrgbCubemap {
-    let path: PathBuf = path.into();
-
-    let cubemap_id = load_cubemap_gl(vec![
-        path.with_file_name("right.jpg"),
-        path.with_file_name("left.jpg"),
-        path.with_file_name("top.jpg"),
-        path.with_file_name("bottom.jpg"),
-        path.with_file_name("front.jpg"),
-        path.with_file_name("back.jpg"),
-    ]);
-
-    unsafe {
-        let cubemap = SrgbCubemap::from_id(
-            facade,
-            glium::texture::SrgbFormat::U8U8U8,
-            cubemap_id,
-            true,
-            MipmapsOption::AutoGeneratedMipmaps,
-            Dimensions::Cubemap { dimension: 6 },
-        );
-
-        return cubemap;
-    }
-}
-
-fn load_cubemap_gl(faces: Vec<PathBuf>) -> u32 {
-    unsafe {
-        let mut texture_id: u32 = 0;
-
-        gl::GenTextures(1, &mut texture_id);
-        gl::BindTexture(gl::TEXTURE_CUBE_MAP, texture_id);
-
-        for i in 0..faces.len() {
-            let texture = ImageReader::open(&faces[i]).unwrap().decode().unwrap();
-
-            let (width, height) = texture.dimensions();
-            let mut pixels = texture.to_rgb8();
-
-            let flat_samples = pixels.as_flat_samples_mut();
-            let slice: &[u8] = flat_samples.as_slice();
-            let ptr: *const core::ffi::c_void = slice as *const _ as *const core::ffi::c_void;
-
-            gl::TexImage2D(
-                gl::TEXTURE_CUBE_MAP_POSITIVE_X + i as u32,
-                0,
-                gl::SRGB as i32,
-                width as i32,
-                height as i32,
-                0,
-                gl::RGB,
-                gl::UNSIGNED_BYTE,
-                ptr,
-            );
-        }
-
-        gl::TexParameteri(
-            gl::TEXTURE_CUBE_MAP,
-            gl::TEXTURE_MIN_FILTER,
-            gl::LINEAR as i32,
-        );
-        gl::TexParameteri(
-            gl::TEXTURE_CUBE_MAP,
-            gl::TEXTURE_MAG_FILTER,
-            gl::LINEAR as i32,
-        );
-        gl::TexParameteri(
-            gl::TEXTURE_CUBE_MAP,
-            gl::TEXTURE_WRAP_S,
-            gl::CLAMP_TO_EDGE as i32,
-        );
-        gl::TexParameteri(
-            gl::TEXTURE_CUBE_MAP,
-            gl::TEXTURE_WRAP_T,
-            gl::CLAMP_TO_EDGE as i32,
-        );
-        gl::TexParameteri(
-            gl::TEXTURE_CUBE_MAP,
-            gl::TEXTURE_WRAP_R,
-            gl::CLAMP_TO_EDGE as i32,
-        );
-
-        return texture_id;
     }
 }

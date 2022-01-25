@@ -1,3 +1,4 @@
+use crate::cubemap_loader::CubemapType;
 use crate::renderer::RenderScene;
 use glium::backend::Facade;
 use glium::index::NoIndices;
@@ -8,6 +9,7 @@ use crate::vertex::Vertex;
 
 pub struct Skybox {
     skybox: SkyboxMat,
+    ibl: Option<CubemapType>,
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: NoIndices,
 }
@@ -74,6 +76,7 @@ impl Skybox {
         Self {
             index_buffer,
             vertex_buffer,
+            ibl: None,
             skybox,
         }
     }
@@ -83,5 +86,13 @@ impl Skybox {
 
     pub fn get_skybox(&self) -> &SkyboxMat {
         &self.skybox
+    }
+
+    pub fn set_ibl(&mut self, cubemap: Option<CubemapType>) {
+        self.ibl = cubemap;
+    }
+
+    pub fn get_ibl(&self) -> &Option<CubemapType> {
+        &self.ibl
     }
 }

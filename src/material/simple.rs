@@ -1,12 +1,12 @@
 use glium::{
     backend::Facade, index::IndicesSource, vertex::VerticesSource, BackfaceCullingMode,
-    DrawParameters, Frame, Program, Surface,
+    DrawParameters, Program,
 };
 use std::any::Any;
 use std::sync::Arc;
 use std::{fs::File, io::Read};
 
-use crate::renderer::SceneData;
+use crate::renderer::{Renderable, SceneData};
 
 use super::Material;
 
@@ -48,7 +48,7 @@ impl Material for Simple {
         &self,
         vertex_buffer: VerticesSource<'a>,
         index_buffer: IndicesSource<'a>,
-        surface: &mut Frame,
+        surface: &mut Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
         _scene_data: &SceneData,
@@ -106,4 +106,3 @@ impl Material for Simple {
         self.clone()
     }
 }
-

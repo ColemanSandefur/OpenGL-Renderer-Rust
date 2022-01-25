@@ -1,12 +1,15 @@
-use glium::{index::IndicesSource, vertex::VerticesSource, Frame};
+use crate::renderer::Renderable;
+use glium::{index::IndicesSource, vertex::VerticesSource};
 use std::any::Any;
 pub mod basic;
+pub mod equirectangle;
 pub mod pbr;
 pub mod phong;
 pub mod simple;
 pub mod skybox;
 
 pub use basic::*;
+pub use equirectangle::*;
 pub use pbr::*;
 pub use phong::*;
 pub use simple::*;
@@ -19,7 +22,7 @@ pub trait Material: 'static {
         &self,
         vertex_buffer: VerticesSource<'a>,
         index_buffer: IndicesSource<'a>,
-        surface: &mut Frame,
+        surface: &mut Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
         scene_data: &SceneData,
