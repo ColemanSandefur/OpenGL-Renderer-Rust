@@ -4,7 +4,6 @@ use glium::{
 };
 use std::any::Any;
 use std::sync::Arc;
-use std::{fs::File, io::Read};
 
 use crate::renderer::{Renderable, SceneData};
 
@@ -18,19 +17,8 @@ pub struct Simple {
 
 impl Simple {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let mut vertex_shader_file = File::open("shaders/simple/vertex.glsl").unwrap();
-        let mut vertex_shader_src = String::new();
-        vertex_shader_file
-            .read_to_string(&mut vertex_shader_src)
-            .unwrap();
-        let mut fragment_shader_file = File::open("shaders/simple/fragment.glsl").unwrap();
-        let mut fragment_shader_src = String::new();
-        fragment_shader_file
-            .read_to_string(&mut fragment_shader_src)
-            .unwrap();
-
         let program =
-            Program::from_source(facade, &vertex_shader_src, &fragment_shader_src, None).unwrap();
+            crate::material::load_program(facade, "shaders/simple/".into());
 
         Self {
             color: [1.0; 3],

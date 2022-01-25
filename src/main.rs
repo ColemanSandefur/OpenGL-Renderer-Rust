@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate glium;
 
+use crate::camera::Camera;
 use crate::cubemap_loader::CubemapLoader;
 use crate::ibl::IrradianceConverter;
 use crate::material::{Equirectangle, PBRParams, SkyboxMat, PBR};
@@ -8,10 +9,12 @@ use crate::pbr_model::PbrModel;
 use crate::skybox::Skybox;
 use crate::support::System;
 use crate::{glium::Surface, renderer::Renderer};
-use cgmath::{Matrix4, Rad};
+use cgmath::Rad;
 
 pub mod basic_model;
+pub mod camera;
 pub mod cubemap_loader;
+pub mod cubemap_render;
 pub mod ibl;
 pub mod material;
 pub mod model;
@@ -39,7 +42,7 @@ fn main() {
         "./ibl/Summi_Pool/cubemap/".into(),
         "png",
         &*display.display,
-        create_camera(Rad(std::f32::consts::PI * 0.5), 1024.0, 1024.0).into(),
+        Camera::new(Rad(std::f32::consts::PI * 0.5), 1024, 1024).into(),
     );
     let skybox_mat = SkyboxMat::load_from_fs(&*display.display, "./ibl/Summi_Pool/cubemap/", "png");
     //let skybox_mat = SkyboxMat::load_from_memory(&*display.display, images, 1024, 1024);
@@ -59,7 +62,7 @@ fn main() {
             "./ibl/Summi_Pool/ibl_map/".into(),
             "png",
             &*display.display,
-            create_camera(Rad(std::f32::consts::PI * 0.5), 32.0, 32.0).into(),
+            Camera::new(Rad(std::f32::consts::PI * 0.5), 32, 32).into(),
         );
     }
 
@@ -100,11 +103,10 @@ fn main() {
             let mut scene = renderer.begin_scene();
 
             let (width, height) = frame.get_dimensions();
-            let camera: Matrix4<f32> =
-                create_camera(Rad(std::f32::consts::PI / 3.0), width as f32, height as f32);
+            let camera = Camera::new(Rad(std::f32::consts::PI / 3.0), width, height);
 
             // Set scene variables
-            scene.set_camera(camera.into());
+            scene.set_camera(camera.get_matrix().into());
             scene.set_camera_pos(camera_pos);
             scene.set_skybox(Some(&skybox));
 
@@ -119,26 +121,4 @@ fn main() {
         },
     );
     println!("Hello, world!");
-}
-
-fn create_camera(fovy: Rad<f32>, width: f32, height: f32) -> Matrix4<f32> {
-    let aspect_ratio = width as f32 / height as f32;
-
-    let f = 1.0 / (fovy.0 / 2.0f32).tan();
-
-    let zfar = 1024.0;
-    let znear = 0.10;
-
-    [
-        [f / aspect_ratio, 0.0, 0.0, 0.0],
-        [0.0, f, 0.0, 0.0],
-        [
-            0.0,
-            0.0,
-            (zfar + znear) / (zfar - znear),
-            (2.0 * (zfar + znear)) / (2.0 * (zfar - znear)),
-        ],
-        [0.0, 0.0, -1.0, 0.0],
-    ]
-    .into()
 }

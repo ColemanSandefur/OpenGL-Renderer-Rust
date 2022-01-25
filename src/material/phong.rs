@@ -4,8 +4,6 @@ use glium::index::IndicesSource;
 use glium::vertex::VerticesSource;
 use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
-use std::fs::File;
-use std::io::Read;
 use std::sync::Arc;
 
 use crate::renderer::{Renderable, SceneData};
@@ -20,19 +18,8 @@ pub struct Phong {
 
 impl Phong {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let mut vertex_shader_file = File::open("shaders/phong/vertex.glsl").unwrap();
-        let mut vertex_shader_src = String::new();
-        vertex_shader_file
-            .read_to_string(&mut vertex_shader_src)
-            .unwrap();
-        let mut fragment_shader_file = File::open("shaders/phong/fragment.glsl").unwrap();
-        let mut fragment_shader_src = String::new();
-        fragment_shader_file
-            .read_to_string(&mut fragment_shader_src)
-            .unwrap();
-
         let program =
-            Program::from_source(facade, &vertex_shader_src, &fragment_shader_src, None).unwrap();
+            crate::material::load_program(facade, "shaders/phong/".into());
 
         Self {
             light: [0.0; 3].into(),

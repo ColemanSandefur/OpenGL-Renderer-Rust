@@ -24,19 +24,7 @@ impl SkyboxMat {
         directory: impl Into<PathBuf>,
         extension: &str,
     ) -> Self {
-        let mut vertex_shader_file = File::open("shaders/skybox/vertex.glsl").unwrap();
-        let mut vertex_shader_src = String::new();
-        vertex_shader_file
-            .read_to_string(&mut vertex_shader_src)
-            .unwrap();
-        let mut fragment_shader_file = File::open("shaders/skybox/fragment.glsl").unwrap();
-        let mut fragment_shader_src = String::new();
-        fragment_shader_file
-            .read_to_string(&mut fragment_shader_src)
-            .unwrap();
-
-        let program =
-            Program::from_source(facade, &vertex_shader_src, &fragment_shader_src, None).unwrap();
+        let program = crate::material::load_program(facade, "shaders/skybox/".into());
 
         println!("Loading cubemap");
         //let cubemap = CubemapLoader::load_from_fs_hdr("hdr_cubemap/".into(), "hdr", facade);
