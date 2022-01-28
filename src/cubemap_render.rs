@@ -5,6 +5,7 @@ use glium::{
     uniforms::Uniforms, vertex::VertexBuffer, DrawParameters, Program, Surface,
 };
 use image::{DynamicImage, ImageBuffer};
+use std::fs::create_dir_all;
 use std::path::PathBuf;
 
 use crate::{camera::Camera, vertex::Vertex};
@@ -52,9 +53,12 @@ impl CubemapRender {
     ) where
         U: Uniforms,
     {
+        create_dir_all(&output_directory).unwrap();
+
         if output_directory.is_dir() {
             output_directory.push("output.random");
         }
+
         let buffer_texture = Texture2d::empty_with_format(
             facade,
             glium::texture::UncompressedFloatFormat::F16F16F16,

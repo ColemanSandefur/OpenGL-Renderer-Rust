@@ -21,4 +21,4 @@ impl Default for Vertex {
     }
 }
 
-implement_vertex!(Vertex, position, model, normal);
+implement_vertex!(Vertex, position, model, normal, tex_coords);

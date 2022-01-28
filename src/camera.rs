@@ -1,4 +1,5 @@
 use cgmath::{Matrix4, Rad};
+#[derive(Clone, Copy)]
 pub struct Camera {
     fovy: Rad<f32>,
     width: u32,

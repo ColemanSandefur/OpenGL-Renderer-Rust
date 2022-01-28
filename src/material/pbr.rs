@@ -131,6 +131,8 @@ impl Material for PBR {
             roughness: roughness,
             ao: ao,
             irradiance_map: skybox_obj.get_ibl().as_ref().unwrap(),
+            prefilter_map: skybox_obj.get_prefilter().as_ref().unwrap(),
+            brdf_lut: skybox_obj.get_brdf().as_ref().unwrap(),
             skybox: &**skybox,
         };
 

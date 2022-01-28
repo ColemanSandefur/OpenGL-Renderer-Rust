@@ -64,5 +64,5 @@ pub fn load_program(facade: &impl Facade, mut path: PathBuf) -> Program {
         .read_to_string(&mut fragment_shader_src)
         .unwrap();
 
-    Program::from_source(facade, &vertex_shader_src, &fragment_shader_src, None).unwrap()
+    Program::from_source(facade, &vertex_shader_src, &fragment_shader_src, None).expect(&format!("Error compiling shader {}", path.as_os_str().to_str().unwrap()))
 }

@@ -1,4 +1,5 @@
 use crate::cubemap_loader::CubemapType;
+use glium::texture::Texture2d;
 use crate::renderer::RenderScene;
 use glium::backend::Facade;
 use glium::index::NoIndices;
@@ -10,6 +11,8 @@ use crate::vertex::Vertex;
 pub struct Skybox {
     skybox: SkyboxMat,
     ibl: Option<CubemapType>,
+    prefilter: Option<CubemapType>,
+    brdf: Option<Texture2d>,
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: NoIndices,
 }
@@ -77,6 +80,8 @@ impl Skybox {
             index_buffer,
             vertex_buffer,
             ibl: None,
+            prefilter: None,
+            brdf: None,
             skybox,
         }
     }
@@ -94,5 +99,21 @@ impl Skybox {
 
     pub fn get_ibl(&self) -> &Option<CubemapType> {
         &self.ibl
+    }
+
+    pub fn set_prefilter(&mut self, cubemap: Option<CubemapType>) {
+        self.prefilter = cubemap;
+    }
+
+    pub fn get_prefilter(&self) -> &Option<CubemapType> {
+        &self.prefilter
+    }
+
+    pub fn set_brdf(&mut self, texture: Option<Texture2d>) {
+        self.brdf = texture;
+    }
+
+    pub fn get_brdf(&self) -> &Option<Texture2d> {
+        &self.brdf
     }
 }
