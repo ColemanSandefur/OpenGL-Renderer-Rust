@@ -17,12 +17,15 @@ I'd recommend checking it out if you are interested in OpenGL!
 Below is what I have done so far:
 
 * Early implementation of Physically Based Rendering (PBR)
+    * PBR Reflections
 * Skybox
 * Phong rendering
 
 # Screenshots
 
 ![Mandalorian](screenshots/Mandalorian.png)
+
+![Mandalorian-Reflection](screenshots/Mandalorian-Reflection.png)
 
 # Current architecture
 

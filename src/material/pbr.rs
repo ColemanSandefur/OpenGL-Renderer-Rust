@@ -6,11 +6,12 @@ use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
 use std::sync::Arc;
 
+use crate::cubemap_loader::CubemapType;
 use crate::renderer::{Renderable, SceneData};
 
 use super::Material;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PBRParams {
     pub albedo: Vector3<f32>,
     pub metallic: f32,
@@ -68,8 +69,7 @@ pub struct PBR {
 
 impl PBR {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let program =
-            crate::material::load_program(facade, "shaders/pbr/".into());
+        let program = crate::material::load_program(facade, "shaders/pbr/".into());
 
         Self {
             light_pos: [0.0; 3].into(),
@@ -120,39 +120,48 @@ impl Material for PBR {
         let skybox_obj = scene_data.get_skybox().unwrap();
         let skybox = skybox_obj.get_skybox().get_cubemap();
 
-        let uniforms = uniform! {
-            light_pos: light_pos,
-            light_color: light_color,
-            projection: camera,
-            view: position,
-            camera_pos: camera_pos,
-            albedo: albedo,
-            metallic: metallic,
-            roughness: roughness,
-            ao: ao,
-            irradiance_map: skybox_obj.get_ibl().as_ref().unwrap(),
-            prefilter_map: skybox_obj.get_prefilter().as_ref().unwrap(),
-            brdf_lut: skybox_obj.get_brdf().as_ref().unwrap(),
-            skybox: &**skybox,
-        };
+        match &skybox_obj.get_prefilter().as_ref().unwrap() {
+            &CubemapType::Cubemap(prefilter) => {
+                prefilter
+                    .sampled()
+                    .minify_filter(glium::uniforms::MinifySamplerFilter::LinearMipmapLinear)
+                    .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear);
+                let uniforms = uniform! {
+                    light_pos: light_pos,
+                    light_color: light_color,
+                    projection: camera,
+                    view: position,
+                    camera_pos: camera_pos,
+                    albedo: albedo,
+                    metallic: metallic,
+                    roughness: roughness,
+                    ao: ao,
+                    irradiance_map: skybox_obj.get_ibl().as_ref().unwrap(),
+                    prefilter_map: prefilter,
+                    brdf_lut: skybox_obj.get_brdf().as_ref().unwrap(),
+                    skybox: &**skybox,
+                };
 
-        surface
-            .draw(
-                vertex_buffer,
-                index_buffer,
-                &*self.program,
-                &uniforms,
-                &DrawParameters {
-                    backface_culling: BackfaceCullingMode::CullCounterClockwise,
-                    depth: glium::Depth {
-                        test: glium::DepthTest::IfLess,
-                        write: true,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+                surface
+                    .draw(
+                        vertex_buffer,
+                        index_buffer,
+                        &*self.program,
+                        &uniforms,
+                        &DrawParameters {
+                            backface_culling: BackfaceCullingMode::CullCounterClockwise,
+                            depth: glium::Depth {
+                                test: glium::DepthTest::IfLess,
+                                write: true,
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                    )
+                    .unwrap();
+            }
+            _ => return,
+        };
     }
 
     fn equal(&self, material: &dyn Any) -> bool {

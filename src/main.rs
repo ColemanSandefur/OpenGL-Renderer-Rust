@@ -4,16 +4,7 @@ extern crate glium;
 use std::error::Error;
 use std::path::PathBuf;
 
-use glium::IndexBuffer;
-use cgmath::InnerSpace;
-use cgmath::Vector3;
-use glium::VertexBuffer;
-use glium::backend::Facade;
-use glium::texture::RawImage2d;
-use glium::texture::Texture2d;
 use crate::camera::Camera;
-use crate::vertex::Vertex;
-use image::io::Reader as ImageReader;
 use crate::cubemap_loader::{CubemapLoader, CubemapType};
 use crate::ibl::{IrradianceConverter, Prefilter, BDRF};
 use crate::material::{Equirectangle, PBRParams, SkyboxMat, PBR};
@@ -22,6 +13,10 @@ use crate::skybox::Skybox;
 use crate::support::System;
 use crate::{glium::Surface, renderer::Renderer};
 use cgmath::Rad;
+use glium::backend::Facade;
+use glium::texture::RawImage2d;
+use glium::texture::Texture2d;
+use image::io::Reader as ImageReader;
 
 pub mod basic_model;
 pub mod camera;
@@ -57,7 +52,7 @@ fn main() {
     let display = System::init("renderer");
 
     // Light positions should be moved from being stored in the material to stored in the scene
-    let light_pos = [0.0, 0.4, -0.7];
+    let light_pos = [0.0, 0.4, -10.0];
 
     let renderer = Renderer::new((*display.display).clone());
 
@@ -82,10 +77,9 @@ fn main() {
             "png",
             &*display.display,
         );
-        let pf = CubemapLoader::load_from_fs_mipmaps(
+        let pf = CubemapLoader::load_from_fs(
             "./ibl/Summi_Pool/cubemap/".into(),
             "png",
-            9,
             &*display.display,
         );
         prefilter.calculate_to_fs(
@@ -113,11 +107,23 @@ fn main() {
         CubemapLoader::load_from_fs("./ibl/Summi_Pool/ibl_map/".into(), "png", &*display.display);
     skybox.set_ibl(Some(ibl));
 
-    let brdf = load_texture(&*display.display, "./ibl/Summi_Pool/ibl_brdf_lut.png".into()).unwrap();
+    let brdf = load_texture(
+        &*display.display,
+        "./ibl/Summi_Pool/ibl_brdf_lut.png".into(),
+    )
+    .unwrap();
     skybox.set_brdf(Some(brdf));
 
-    let prefilter = 
-        CubemapLoader::load_from_fs("./ibl/Summi_Pool/prefilter/".into(), "png", &*display.display);
+    let prefilter = CubemapLoader::load_mips_fs(
+        "./ibl/Summi_Pool/prefilter/".into(),
+        "png",
+        &*display.display,
+    );
+
+    match &prefilter {
+        CubemapType::Cubemap(c) => println!("mips: {}", c.get_mipmap_levels()),
+        CubemapType::SrgbCubemap(c) => println!("mips: {}", c.get_mipmap_levels()),
+    };
     skybox.set_prefilter(Some(prefilter));
 
     let mut pbr = PBR::load_from_fs(&*display.display);
@@ -131,55 +137,17 @@ fn main() {
         pbr.clone(),
     );
 
-    for segment in model.get_segments_mut() {
-        //segment.get_material_mut().get_pbr_params_mut().metallic = 1.0;
-        //segment.get_material_mut().get_pbr_params_mut().roughness = 0.05;
-        segment.get_material_mut().get_pbr_params_mut().ao = 1.0;
+    let segments = model.get_segments_mut();
+    {
+        let visor = segments[0].get_material_mut().get_pbr_params_mut();
+        visor.metallic = 1.0;
+        visor.roughness = 0.05;
+        visor.albedo = [0.01; 3].into();
+        let helmet = segments[1].get_material_mut().get_pbr_params_mut();
+        helmet.metallic = 1.0;
+        helmet.roughness = 0.4;
+        helmet.albedo = [0.3; 3].into();
     }
-    let (vertex_buffer, index_buffer) = {
-        let width = 1.0;
-        let points = [
-            [-width / 2.0, width / 2.0, 0.0],
-            [width / 2.0, width / 2.0, 0.0],
-            [-width / 2.0, -width / 2.0, 0.0],
-            [width / 2.0, -width / 2.0, 0.0],
-        ];
-    let p1: Vector3<f32> = points[0].into();
-    let p2: Vector3<f32> = points[1].into();
-    let p3: Vector3<f32> = points[2].into();
-
-    let u = p2 - p1;
-    let v = p3 - p1;
-
-    let normal: [f32; 3] = u.cross(v).normalize().into();
-        let vb = VertexBuffer::new(&*display.display, &[
-                Vertex {
-                    position: [-width / 2.0, width / 2.0, 0.0],
-                    normal,
-                    ..Default::default()
-                },
-                Vertex {
-                    position: [width / 2.0, width / 2.0, 0.0],
-                    normal,
-                    ..Default::default()
-                },
-                Vertex {
-                    position: [-width / 2.0, -width / 2.0, 0.0],
-                    normal,
-                    ..Default::default()
-                },
-                Vertex {
-                    position: [width / 2.0, -width / 2.0, 0.0],
-                    normal,
-                    ..Default::default()
-                },
-            ]).unwrap();
-        let ib = IndexBuffer::new(&*display.display, glium::index::PrimitiveType::TrianglesList, &[0u32, 1, 2, 1, 3, 2],).unwrap();
-
-        (vb, ib)
-    };
-
-    //let mut model = PbrModel::load_from_mem(vertex_buffer, index_buffer, pbr.clone());
 
     model.relative_move([0.0, -0.15, 1.0]);
     model.relative_rotate([Rad(0.0), Rad(0.0 * std::f32::consts::PI), Rad(0.0)]);
@@ -193,9 +161,9 @@ fn main() {
         move |frame, delta_time| {
             let delta_ms = delta_time.as_micros() as f32 / 1000.0;
             //println!(
-                //"FPS: {:.0}, Frametime: {:.2}",
-                //1.0 / (delta_ms / 1_000.0),
-                //delta_ms
+            //"FPS: {:.0}, Frametime: {:.2}",
+            //1.0 / (delta_ms / 1_000.0),
+            //delta_ms
             //);
 
             // Start a new scene
@@ -220,32 +188,4 @@ fn main() {
         },
     );
     println!("Hello, world!");
-}
-
-pub fn create_sphere() -> Vec<Vertex> {
-    let mut vertices = Vec::new();
-
-    const X_SEGMENTS: u32 = 64;
-    const Y_SEGMENTS: u32 = 64;
-    const PI: f32 = std::f32::consts::PI;
-
-    for x in 0..X_SEGMENTS {
-        for y in 0..Y_SEGMENTS {
-            let x_seg = x as f32 / X_SEGMENTS as f32;
-            let y_seg = y as f32 / Y_SEGMENTS as f32;
-
-            let x_pos = (x_seg * 2.0 * PI ).cos() * (y_seg * PI).sin();
-            let y_pos = (y_seg * PI).cos();
-            let z_pos = (x_seg * 2.0 * PI ).sin() * (y_seg * PI).sin();
-
-            vertices.push(Vertex {
-                position: [x_pos, y_pos, z_pos],
-                tex_coords: [x_seg, y_seg],
-                normal: [x_pos, y_pos, z_pos],
-                .. Default::default()
-            });
-        }
-    }
-
-    vertices
 }

@@ -37,7 +37,7 @@ impl Prefilter {
             CubemapType::SrgbCubemap(c) => c.get_mipmap_levels(),
         };
 
-        let mip_levels = cubemap_mip.min(Self::MAX_MIP_LEVELS);
+        let mip_levels = Self::MAX_MIP_LEVELS;
 
         for level in 0..mip_levels as i32 {
             let output_size = ((output_size.0 as f32 * (0.5f32).powi(level)) as u32, (output_size.1 as f32 * (0.5f32).powi(level)) as u32);

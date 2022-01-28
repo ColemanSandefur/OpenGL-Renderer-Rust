@@ -1,9 +1,8 @@
 use glium::{VertexBuffer, backend::Facade, IndexBuffer, Program, texture::Texture2d, texture::DepthTexture2d, framebuffer::SimpleFrameBuffer, Surface};
-use cgmath::Rad;
 use image::{ImageBuffer, DynamicImage};
 use std::{sync::Arc, path::PathBuf};
 
-use crate::{vertex::Vertex, camera::Camera};
+use crate::{vertex::Vertex};
 
 #[derive(Clone)]
 pub struct BDRF {

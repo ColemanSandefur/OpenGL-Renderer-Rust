@@ -1,4 +1,3 @@
-use crate::material::Material;
 use crate::material::PBR;
 use crate::renderer::RenderScene;
 use cgmath::Matrix4;
@@ -131,6 +130,8 @@ impl PbrModel {
                         material.get_pbr_params_mut().metallic = data[0];
                     }
                 }
+
+                material.get_pbr_params_mut().ao = 1.0;
             }
 
             segments.push(PbrModelSegment::new(vertex_buffer, index_buffer, material));
@@ -228,10 +229,16 @@ impl PbrModel {
         }
     }
 
-    pub fn load_from_mem(vertex_buffer: VertexBuffer<Vertex>, index_buffer: IndexBuffer<u32>, material: PBR) -> Self {
-        let segments = vec![
-            PbrModelSegment::new(vertex_buffer, index_buffer, material.clone())
-        ];
+    pub fn load_from_mem(
+        vertex_buffer: VertexBuffer<Vertex>,
+        index_buffer: IndexBuffer<u32>,
+        material: PBR,
+    ) -> Self {
+        let segments = vec![PbrModelSegment::new(
+            vertex_buffer,
+            index_buffer,
+            material.clone(),
+        )];
 
         Self {
             material,

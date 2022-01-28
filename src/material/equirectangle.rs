@@ -11,8 +11,6 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::vertex::Vertex;
-
 #[derive(Clone)]
 pub struct Equirectangle {
     program: Arc<Program>,

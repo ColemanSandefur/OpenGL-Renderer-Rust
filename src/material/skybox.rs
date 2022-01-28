@@ -5,8 +5,6 @@ use glium::index::IndicesSource;
 use glium::vertex::VerticesSource;
 use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
-use std::fs::File;
-use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -28,7 +26,7 @@ impl SkyboxMat {
 
         println!("Loading cubemap");
         //let cubemap = CubemapLoader::load_from_fs_hdr("hdr_cubemap/".into(), "hdr", facade);
-        let cubemap = CubemapLoader::load_from_fs_hdr(directory.into(), extension, facade);
+        let cubemap = CubemapLoader::load_from_fs(directory.into(), extension, facade);
         println!("Finished loading cubemap");
 
         Self {
@@ -37,23 +35,24 @@ impl SkyboxMat {
         }
     }
 
-    pub fn load_from_memory(
-        facade: &impl Facade,
-        images: Vec<Vec<f32>>,
-        width: u32,
-        height: u32,
-    ) -> Self {
-        let program = crate::material::load_program(facade, "shaders/skybox/".into());
+    // To be reimplemented
+    //pub fn load_from_memory(
+        //facade: &impl Facade,
+        //images: Vec<Vec<f32>>,
+        //width: u32,
+        //height: u32,
+    //) -> Self {
+        //let program = crate::material::load_program(facade, "shaders/skybox/".into());
 
-        println!("Loading cubemap");
-        let cubemap = CubemapLoader::load_from_memory_hdr(images, width, height, facade);
-        println!("Finished loading cubemap");
+        //println!("Loading cubemap");
+        //let cubemap = CubemapLoader::load_from_memory_hdr(images, width, height, facade);
+        //println!("Finished loading cubemap");
 
-        Self {
-            program: Arc::new(program),
-            skybox: Arc::new(cubemap),
-        }
-    }
+        //Self {
+            //program: Arc::new(program),
+            //skybox: Arc::new(cubemap),
+        //}
+    //}
 
     pub fn load_from_cubemap(facade: &impl Facade, cubemap: CubemapType) -> Self {
         let program = crate::material::load_program(facade, "shaders/skybox/".into());
