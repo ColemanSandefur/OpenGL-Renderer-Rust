@@ -9,10 +9,10 @@ uniform vec3 camera_pos;
 uniform vec3 light_pos;
 uniform vec3 light_color;
 
-uniform vec3 albedo;
-uniform float metallic;
-uniform float roughness;
-uniform float ao;
+uniform sampler2D albedo_map;
+uniform sampler2D metallic_map;
+uniform sampler2D roughness_map;
+uniform sampler2D ao_map;
 
 uniform samplerCube irradiance_map;
 uniform samplerCube prefilter_map;
@@ -63,6 +63,11 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
 }
 
 void main() {
+    vec3 albedo = texture(albedo_map, v_tex_coords).rgb;
+    float metallic = texture(metallic_map, v_tex_coords).r;
+    float roughness = texture(roughness_map, v_tex_coords).r;
+    float ao = texture(ao_map, v_tex_coords).r;
+
     vec3 N = v_normal;
     vec3 V = normalize(camera_pos - v_world_pos);
     vec3 R = reflect(V, N); 

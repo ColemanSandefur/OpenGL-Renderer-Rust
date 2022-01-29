@@ -1,5 +1,8 @@
+use crate::material::pbr;
+use crate::material::PBRTextures;
 use crate::material::PBR;
 use crate::renderer::RenderScene;
+use crate::PBRParams;
 use cgmath::Matrix4;
 use cgmath::Rad;
 use cgmath::Vector3;
@@ -8,6 +11,7 @@ use glium::{IndexBuffer, VertexBuffer};
 use russimp::material::PropertyTypeInfo::FloatArray;
 use russimp::scene::PostProcess;
 use russimp::scene::Scene;
+use russimp::Vector3D;
 use std::path::PathBuf;
 use tobj::LoadOptions;
 
@@ -91,9 +95,18 @@ impl PbrModel {
                 let position: [f32; 3] = [vertex.x, vertex.y, vertex.z];
                 let normal_vec = mesh.normals[index as usize];
                 let normal = [normal_vec.x, normal_vec.y, normal_vec.z];
+                let tex_coords = match mesh.texture_coords[0].as_ref() {
+                    Some(texture_coords) => {
+                        let vec3 = texture_coords[index as usize];
+                        [vec3.x, vec3.y]
+                    }
+                    None => [0.0; 2],
+                };
+
                 vertices.push(Vertex {
                     position,
                     normal,
+                    tex_coords,
                     ..Default::default()
                 });
             }
@@ -110,29 +123,25 @@ impl PbrModel {
             let vertex_buffer = VertexBuffer::new(facade, &vertices).unwrap();
 
             let mut material = material.clone();
+            let mut basic_mat = PBRParams::default();
 
             let scene_material = &scene.materials[mesh.material_index as usize];
             for property in &scene_material.properties {
                 if property.key == "$clr.base" {
                     if let FloatArray(data) = &property.data {
-                        material.get_pbr_params_mut().albedo = [data[0], data[1], data[2]].into();
+                        basic_mat.set_albedo([data[0], data[1], data[2]]);
                     }
-                }
-
-                if property.key == "$mat.roughnessFactor" {
+                } else if property.key == "$mat.roughnessFactor" {
                     if let FloatArray(data) = &property.data {
-                        material.get_pbr_params_mut().roughness = data[0];
+                        basic_mat.set_roughness(data[0]);
                     }
-                }
-
-                if property.key == "$mat.metallicFactor" {
+                } else if property.key == "$mat.metallicFactor" {
                     if let FloatArray(data) = &property.data {
-                        material.get_pbr_params_mut().metallic = data[0];
+                        basic_mat.set_metallic(data[0]);
                     }
                 }
-
-                material.get_pbr_params_mut().ao = 1.0;
             }
+            material.set_pbr_params(PBRTextures::from_params(basic_mat, facade));
 
             segments.push(PbrModelSegment::new(vertex_buffer, index_buffer, material));
         }
@@ -215,7 +224,9 @@ impl PbrModel {
 
             if let Some(material_index) = model.mesh.material_id {
                 let given_material = materials.as_ref().unwrap().get(material_index).unwrap();
-                material.get_pbr_params_mut().albedo = given_material.diffuse.into();
+                material
+                    .get_pbr_params_mut()
+                    .set_albedo_map(pbr::create_texture(facade, given_material.diffuse));
             }
 
             segments.push(PbrModelSegment::new(vertex_buffer, index_buffer, material));
@@ -262,7 +273,6 @@ impl PbrModel {
     }
 
     pub fn render<'a>(&'a self, scene: &mut RenderScene<'a>) {
-        //scene.publish(&self.vertex_buffer, &self.index_buffer, &self.material);
         for item in &self.segments {
             item.render(scene);
         }

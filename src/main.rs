@@ -19,6 +19,7 @@ use glium::backend::Facade;
 use glium::texture::RawImage2d;
 use glium::texture::Texture2d;
 use image::io::Reader as ImageReader;
+use material::PBRTextures;
 
 pub mod basic_model;
 pub mod camera;
@@ -138,11 +139,10 @@ fn main() {
 
     let mut pbr = PBR::load_from_fs(&*display.display);
     pbr.set_light_pos(light_pos);
-    pbr.set_pbr_params(PBRParams::metal());
 
     // Load model
 
-    pbr.get_pbr_params_mut().roughness = 0.05;
+    //pbr.get_pbr_params_mut().roughness = 0.05;
 
     //let mut models = generate_cubes(
     //7,
@@ -153,13 +153,11 @@ fn main() {
     //);
 
     let mut models = vec![PbrModel::load_from_gltf(
-        //"./models/ship/ship.glb".into(),
         "./models/mandalorian/mando.glb".into(),
         &*display.display,
         pbr.clone(),
     )];
-
-    modify_mando(&mut models[0]);
+    models[0].relative_move([0.0, -1.0, 10.0]);
 
     let rotation = RPM * 10.0;
 
@@ -196,25 +194,11 @@ fn main() {
 
             // Manipulate model
             for model in &mut models {
-                //model.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
+                model.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
             }
-            //model.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
         },
     );
     println!("Hello, world!");
-}
-
-fn modify_mando(model: &mut PbrModel) {
-    model.relative_move([0.0, -0.15, 1.0]);
-    let segments = model.get_segments_mut();
-    let visor = segments[0].get_material_mut().get_pbr_params_mut();
-    visor.metallic = 1.0;
-    visor.roughness = 0.05;
-    visor.albedo = [0.01; 3].into();
-    let helmet = segments[1].get_material_mut().get_pbr_params_mut();
-    helmet.metallic = 1.0;
-    helmet.roughness = 0.4;
-    helmet.albedo = [0.3; 3].into();
 }
 
 fn generate_cubes(
@@ -247,11 +231,15 @@ fn generate_cubes(
 
             {
                 let segments = model.get_segments_mut();
-                let main = segments[0].get_material_mut().get_pbr_params_mut();
+                let mut material = PBRParams::default();
 
-                main.albedo = [0.5, 0.0, 0.0].into();
-                main.metallic = metallic;
-                main.roughness = roughness;
+                material.albedo = [0.5, 0.0, 0.0].into();
+                material.metallic = metallic;
+                material.roughness = roughness;
+
+                segments[0]
+                    .get_material_mut()
+                    .set_pbr_params(PBRTextures::from_params(material, facade));
             }
 
             model
