@@ -1,9 +1,10 @@
 use crate::material::pbr;
+use crate::material::pbr::PBRParams;
 use crate::material::PBRTextures;
 use crate::material::PBR;
 use crate::renderer::RenderScene;
-use crate::PBRParams;
 use cgmath::Matrix4;
+use cgmath::MetricSpace;
 use cgmath::Rad;
 use cgmath::Vector3;
 use glium::backend::Facade;
@@ -273,6 +274,16 @@ impl PbrModel {
     }
 
     pub fn render<'a>(&'a self, scene: &mut RenderScene<'a>) {
+        let camera: Vector3<f32> = (*scene.get_scene_data().get_camera_pos()).into();
+        let object: Vector3<f32> = self.position.into();
+
+        // Lod
+        let distance = object.distance(camera);
+
+        if distance >= 5.0 {
+            return;
+        }
+
         for item in &self.segments {
             item.render(scene);
         }
@@ -302,5 +313,12 @@ impl PbrModel {
     }
     pub fn get_segments_mut(&mut self) -> &mut Vec<PbrModelSegment> {
         &mut self.segments
+    }
+    pub fn get_position(&self) -> &Vector3<f32> {
+        &self.position
+    }
+
+    pub fn get_rotation(&self) -> &Vector3<Rad<f32>> {
+        &self.rotation
     }
 }

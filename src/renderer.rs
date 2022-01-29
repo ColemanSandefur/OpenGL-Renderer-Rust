@@ -141,6 +141,10 @@ impl<'a> RenderScene<'a> {
         self.scene_data.skybox
     }
 
+    pub fn get_scene_data(&self) -> &SceneData {
+        &self.scene_data
+    }
+
     // Render all the items
     pub fn finish(mut self, surface: &mut Renderable) {
         let skybox = match &self.scene_data.skybox {

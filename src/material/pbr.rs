@@ -14,7 +14,7 @@ use crate::renderer::{Renderable, SceneData};
 
 use super::Material;
 
-// Creates a texture based off of a single color
+// Creates a texture based off of a single color.
 // Helper function for PBRTextures when converting from PBRParams
 pub fn create_texture(facade: &impl Facade, color: [f32; 3]) -> Texture2d {
     let texture = Texture2d::empty(facade, 1, 1).unwrap();
@@ -25,7 +25,7 @@ pub fn create_texture(facade: &impl Facade, color: [f32; 3]) -> Texture2d {
     texture
 }
 
-// Basic definition of physically based rendering parameters
+// Basic definition of physically based rendering parameters.
 // Now used for easy creation of PBRTextures
 #[derive(Clone, Debug)]
 pub struct PBRParams {
@@ -87,7 +87,7 @@ impl Default for PBRParams {
     }
 }
 
-// Holds texture maps for physically based rendering
+// Holds texture maps for physically based rendering.
 // Has now replaced PBRParams in the PBR shader, you can easily convert PBRParams into PBRTextures
 // using from_params function
 #[derive(Clone)]

@@ -1,39 +1,22 @@
-#[macro_use]
-extern crate glium;
-
-use crate::glium::GlObject;
+use opengl_render::glium::GlObject;
 use std::error::Error;
 use std::path::PathBuf;
 
-use crate::camera::Camera;
-use crate::cubemap_loader::{CubemapLoader, CubemapType};
-use crate::ibl::{IrradianceConverter, Prefilter, BDRF};
-use crate::material::{Equirectangle, PBRParams, SkyboxMat, PBR};
-use crate::pbr_model::PbrModel;
-use crate::skybox::Skybox;
-use crate::support::System;
-use crate::{glium::Surface, renderer::Renderer};
 use cgmath::Rad;
 use cgmath::Vector3;
 use glium::backend::Facade;
 use glium::texture::RawImage2d;
 use glium::texture::Texture2d;
 use image::io::Reader as ImageReader;
-use material::PBRTextures;
-
-pub mod basic_model;
-pub mod camera;
-pub mod cubemap_loader;
-pub mod cubemap_render;
-pub mod ibl;
-pub mod material;
-pub mod model;
-pub mod pbr_model;
-pub mod renderer;
-pub mod shape;
-pub mod skybox;
-pub mod support;
-pub mod vertex;
+use opengl_render::camera::Camera;
+use opengl_render::cubemap_loader::{CubemapLoader, CubemapType};
+use opengl_render::ibl::{IrradianceConverter, Prefilter, BDRF};
+use opengl_render::material::PBRTextures;
+use opengl_render::material::{Equirectangle, PBRParams, SkyboxMat, PBR};
+use opengl_render::pbr_model::PbrModel;
+use opengl_render::skybox::Skybox;
+use opengl_render::support::System;
+use opengl_render::{glium::Surface, renderer::Renderer};
 
 // Rad / ms that should be rotated to get 1 RPM
 const RPM: f32 = std::f32::consts::PI * 2.0 / 60.0 / 1000.0;
@@ -157,7 +140,7 @@ fn main() {
         &*display.display,
         pbr.clone(),
     )];
-    models[0].relative_move([0.0, -1.0, 10.0]);
+    models[0].relative_move([0.0, 0.0, 10.0]);
 
     let rotation = RPM * 10.0;
 
