@@ -34,7 +34,7 @@ impl PBRParams {
             albedo: [0.7, 0.7, 0.7].into(),
             metallic: 0.75,
             roughness: 0.24,
-            ao: 0.0,
+            ao: 1.0,
         }
     }
 }
@@ -73,7 +73,7 @@ impl PBR {
 
         Self {
             light_pos: [0.0; 3].into(),
-            light_color: [1.0; 3].into(),
+            light_color: [300.0; 3].into(),
             program: Arc::new(program),
             pbr_params: PBRParams {
                 ..Default::default()

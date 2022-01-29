@@ -27,6 +27,8 @@ Below is what I have done so far:
 
 ![Mandalorian-Reflection](screenshots/Mandalorian-Reflection.png)
 
+![Spheres](screenshots/Spheres.png)
+
 # Current architecture
 
 1. When you load a model you pass in a material that will be used to render the model.

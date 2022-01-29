@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate glium;
 
+use crate::glium::GlObject;
 use std::error::Error;
 use std::path::PathBuf;
 
@@ -13,6 +14,7 @@ use crate::skybox::Skybox;
 use crate::support::System;
 use crate::{glium::Surface, renderer::Renderer};
 use cgmath::Rad;
+use cgmath::Vector3;
 use glium::backend::Facade;
 use glium::texture::RawImage2d;
 use glium::texture::Texture2d;
@@ -44,6 +46,14 @@ fn load_texture(facade: &impl Facade, path: PathBuf) -> Result<Texture2d, Box<dy
     let source_image = RawImage2d::from_raw_rgb(source_data, source_dimensions);
 
     let source_texture = Texture2d::new(facade, source_image)?;
+
+    unsafe {
+        let texture = source_texture.get_id();
+
+        gl::BindTexture(gl::TEXTURE_2D, texture);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+    }
 
     Ok(source_texture)
 }
@@ -130,27 +140,26 @@ fn main() {
     pbr.set_light_pos(light_pos);
     pbr.set_pbr_params(PBRParams::metal());
 
-    let mut model = PbrModel::load_from_gltf(
+    // Load model
+
+    pbr.get_pbr_params_mut().roughness = 0.05;
+
+    //let mut models = generate_cubes(
+    //7,
+    //7,
+    //[0.0, 0.0, 30.0].into(),
+    //&*display.display,
+    //pbr.clone(),
+    //);
+
+    let mut models = vec![PbrModel::load_from_gltf(
         //"./models/ship/ship.glb".into(),
         "./models/mandalorian/mando.glb".into(),
         &*display.display,
         pbr.clone(),
-    );
+    )];
 
-    let segments = model.get_segments_mut();
-    {
-        let visor = segments[0].get_material_mut().get_pbr_params_mut();
-        visor.metallic = 1.0;
-        visor.roughness = 0.05;
-        visor.albedo = [0.01; 3].into();
-        let helmet = segments[1].get_material_mut().get_pbr_params_mut();
-        helmet.metallic = 1.0;
-        helmet.roughness = 0.4;
-        helmet.albedo = [0.3; 3].into();
-    }
-
-    model.relative_move([0.0, -0.15, 1.0]);
-    model.relative_rotate([Rad(0.0), Rad(0.0 * std::f32::consts::PI), Rad(0.0)]);
+    modify_mando(&mut models[0]);
 
     let rotation = RPM * 10.0;
 
@@ -178,14 +187,79 @@ fn main() {
             scene.set_skybox(Some(&skybox));
 
             // send items to be rendered
-            model.render(&mut scene);
+            for model in &models {
+                model.render(&mut scene);
+            }
 
             // Render items
             scene.finish(&mut frame.into());
 
             // Manipulate model
-            model.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
+            for model in &mut models {
+                //model.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
+            }
+            //model.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
         },
     );
     println!("Hello, world!");
+}
+
+fn modify_mando(model: &mut PbrModel) {
+    model.relative_move([0.0, -0.15, 1.0]);
+    let segments = model.get_segments_mut();
+    let visor = segments[0].get_material_mut().get_pbr_params_mut();
+    visor.metallic = 1.0;
+    visor.roughness = 0.05;
+    visor.albedo = [0.01; 3].into();
+    let helmet = segments[1].get_material_mut().get_pbr_params_mut();
+    helmet.metallic = 1.0;
+    helmet.roughness = 0.4;
+    helmet.albedo = [0.3; 3].into();
+}
+
+fn generate_cubes(
+    width: u32,
+    height: u32,
+    offset: Vector3<f32>,
+    facade: &impl Facade,
+    pbr: PBR,
+) -> Vec<PbrModel> {
+    let mut models = Vec::new();
+
+    let gap = 3.0;
+    let top_left = offset
+        - Vector3::new(
+            (width - 1) as f32 / 2.0 * gap,
+            (height - 1) as f32 / 2.0 * gap,
+            0 as f32,
+        );
+
+    for row in 0..height {
+        let metallic = row as f32 / height as f32;
+        for column in 0..width {
+            let roughness = (column as f32 / width as f32).max(0.05);
+            let mut model = PbrModel::load_from_gltf(
+                //"./models/ship/ship.glb".into(),
+                "./models/cube/sphere.glb".into(),
+                &*facade,
+                pbr.clone(),
+            );
+
+            {
+                let segments = model.get_segments_mut();
+                let main = segments[0].get_material_mut().get_pbr_params_mut();
+
+                main.albedo = [0.5, 0.0, 0.0].into();
+                main.metallic = metallic;
+                main.roughness = roughness;
+            }
+
+            model
+                .relative_move(top_left + Vector3::new(gap * column as f32, gap * row as f32, 0.0));
+
+            models.push(model);
+        }
+    }
+
+    models
 }

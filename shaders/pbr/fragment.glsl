@@ -17,7 +17,6 @@ uniform float ao;
 uniform samplerCube irradiance_map;
 uniform samplerCube prefilter_map;
 uniform sampler2D brdf_lut;
-uniform samplerCube skybox;
 
 const float PI = 3.14159265359;
 
@@ -130,10 +129,6 @@ void main() {
     
     vec3 color = ambient + Lo;
 
-    // HDR tonemapping
-    color = color / (color + vec3(1.0));
-    // gamma correct
-    color = pow(color, vec3(1.0/2.2)); 
-
     f_color = vec4(color , 1.0);
+    //f_color = vec4(ambient, 1.0);
 }
