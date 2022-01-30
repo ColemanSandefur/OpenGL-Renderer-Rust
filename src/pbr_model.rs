@@ -1,4 +1,3 @@
-use crate::material::pbr;
 use crate::material::pbr::PBRParams;
 use crate::material::PBRTextures;
 use crate::material::PBR;
@@ -13,13 +12,12 @@ use russimp::material::PropertyTypeInfo::FloatArray;
 use russimp::scene::PostProcess;
 use russimp::scene::Scene;
 use std::path::PathBuf;
-use tobj::LoadOptions;
 
 use crate::vertex::Vertex;
 
-// Model that uses the Physically Based Rendering shader
-
-// Models often consist of multiple smaller models, I am calling them segments
+/// Section of a [`PbrModel`]
+///
+/// Models often consist of multiple smaller models, I am calling them segments.
 pub struct PbrModelSegment {
     material: PBR,
     vertex_buffer: VertexBuffer<Vertex>,
@@ -38,6 +36,9 @@ impl PbrModelSegment {
         }
     }
 
+    /// Sets the translation matrix for all the vertices of the model.
+    /// 
+    /// You shouldn't need to use this.
     pub fn build_matrix(&mut self, model: Matrix4<f32>) {
         for vert in &mut *self.vertex_buffer.map() {
             vert.model = model.into();
@@ -54,20 +55,47 @@ impl PbrModelSegment {
     pub fn get_material_mut(&mut self) -> &mut PBR {
         &mut self.material
     }
+    pub fn set_material(&mut self, material: PBR) {
+        self.material = material;
+    }
 }
 
-// The main model, this will control things that affect the whole model. You can also gain access
-// to the segments of the model if you wish.
+/// A model that will be rendered using Physically Based Rendering
+///
+/// When the `PbrModel` is constructed, it will consist of multiple segments. Each segment has its
+/// own index and vertex buffers and has its own [`PBR`] material which defines how the whole
+/// segment should be colored. The `PbrModel` also holds the position and rotation of the model (in
+/// world space). This is how you will move the model around in the scene. To render the model you
+/// will call `render` on the object and pass in a [`RenderScene`] which will control when the
+/// model should be rendered.
+///
+/// # Example
+///
+/// ```
+/// // Load the model from the file system
+/// let mut model = PbrModel::load_from_fs("cube.glb", display, material);
+///
+/// // Rotate and move the model
+/// model.relative_move([1.0, 0.0, 0.0]);
+/// model.relative_rotate([0.0, 0.0, Rad(std::f32::consts::PI / 2.0)]);
+///
+/// // scene is a RenderScene
+/// // Submit the model to be rendered
+/// model.render(&mut scene);
+/// ```
 pub struct PbrModel {
-    material: PBR,
     position: Vector3<f32>,
     rotation: Vector3<Rad<f32>>,
     segments: Vec<PbrModelSegment>,
 }
 
 impl PbrModel {
-    // Loads a glTF 2.0 (.glb) file
-    pub fn load_from_gltf(path: PathBuf, facade: &impl Facade, material: PBR) -> Self {
+    /// Loads a model file from the file system
+    ///
+    /// This should primarily be used for loading glTF 2.0 (.glb) files as they support PBR
+    /// materials. It does load wavefront (.obj) files, but the material will not look right due to
+    /// wavefront not supporting pbr materials.
+    pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: PBR) -> Self {
         let scene = Scene::from_file(
             path.as_os_str().to_str().unwrap(),
             vec![
@@ -127,6 +155,7 @@ impl PbrModel {
 
             let scene_material = &scene.materials[mesh.material_index as usize];
             for property in &scene_material.properties {
+                // gltf
                 if property.key == "$clr.base" {
                     if let FloatArray(data) = &property.data {
                         basic_mat.set_albedo([data[0], data[1], data[2]]);
@@ -140,6 +169,23 @@ impl PbrModel {
                         basic_mat.set_metallic(data[0]);
                     }
                 }
+
+                // obj
+                if property.key == "$clr.diffuse" {
+                    if let FloatArray(data) = &property.data {
+                        println!("{:?}", [data[0], data[1], data[2]]);
+                        basic_mat.set_albedo([data[0], data[1], data[2]]);
+                    }
+                } else if property.key == "$mat.shininess" {
+                    if let FloatArray(data) = &property.data {
+                        let shininess = data[0].min(900.0)/900.0;
+                        let roughness = (1.0 - shininess).max(0.05);
+
+                        basic_mat.set_roughness(roughness);
+                    }
+                }
+
+                println!("{:?}", property);
             }
             material.set_pbr_params(PBRTextures::from_params(basic_mat, facade));
 
@@ -147,99 +193,16 @@ impl PbrModel {
         }
 
         Self {
-            material,
             position: [0.0; 3].into(),
             rotation: [Rad(0.0); 3].into(),
             segments,
         }
     }
 
-    // Loads a Wavefront (.obj) file
-    pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: PBR) -> Self {
-        let (models, materials) = tobj::load_obj(
-            path.as_os_str().to_str().unwrap(),
-            &LoadOptions {
-                single_index: true,
-                triangulate: true,
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-        if materials.is_ok() {
-            for material in materials.as_ref().unwrap() {
-                println!("{:#?}", material);
-            }
-        }
-
-        let mut segments = Vec::new();
-
-        for model in models {
-            println!("num texcoords {}", model.mesh.texcoords.len() / 2);
-            //println!("{}", model.name);
-            let mut vertices: Vec<Vertex> = Vec::new();
-            let indices: Vec<u32> = model.mesh.indices;
-
-            let num_vertices = model.mesh.positions.len() / 3;
-
-            // Load x, y, z, positions for all vertices
-            for triplet in 0..num_vertices {
-                let index = triplet * 3;
-                let x = model.mesh.positions[index];
-                let y = model.mesh.positions[index + 1];
-                let z = model.mesh.positions[index + 2];
-
-                vertices.push(Vertex {
-                    position: [x, y, z],
-                    ..Default::default()
-                });
-            }
-
-            // Load the normals for all veritces
-            for triplet in 0..num_vertices {
-                let index = triplet * 3;
-                if model.mesh.normals.get(index).is_none() {
-                    break;
-                }
-                let x = model.mesh.normals[index];
-                let y = model.mesh.normals[index + 1];
-                let z = model.mesh.normals[index + 2];
-
-                match vertices.get_mut(triplet) {
-                    Some(vertex) => {
-                        vertex.normal = [x, y, z];
-                    }
-                    None => {
-                        println!("vertex {} is missing", index);
-                    }
-                };
-            }
-
-            let index_buffer =
-                IndexBuffer::new(facade, glium::index::PrimitiveType::TrianglesList, &indices)
-                    .unwrap();
-            let vertex_buffer = VertexBuffer::new(facade, &vertices).unwrap();
-
-            let mut material = material.clone();
-
-            if let Some(material_index) = model.mesh.material_id {
-                let given_material = materials.as_ref().unwrap().get(material_index).unwrap();
-                material
-                    .get_pbr_params_mut()
-                    .set_albedo_map(pbr::create_texture(facade, given_material.diffuse));
-            }
-
-            segments.push(PbrModelSegment::new(vertex_buffer, index_buffer, material));
-        }
-
-        Self {
-            material,
-            position: [0.0; 3].into(),
-            rotation: [Rad(0.0); 3].into(),
-            segments,
-        }
-    }
-
+    /// Makes a model out of vertex and index buffers
+    ///
+    /// Just pass in the vertex and index buffers along with a PBR material and it will return a
+    /// PbrModel
     pub fn load_from_mem(
         vertex_buffer: VertexBuffer<Vertex>,
         index_buffer: IndexBuffer<u32>,
@@ -252,26 +215,18 @@ impl PbrModel {
         )];
 
         Self {
-            material,
             position: [0.0; 3].into(),
             rotation: [Rad(0.0); 3].into(),
             segments,
         }
     }
 
-    pub fn build_matrix(&mut self) {
-        let rotation_mat = Matrix4::from_angle_x(self.rotation.x)
-            * Matrix4::from_angle_y(self.rotation.y)
-            * Matrix4::from_angle_z(self.rotation.z);
-        let translation = Matrix4::from_translation(self.position);
-
-        let model = translation * rotation_mat;
-
-        for segment in &mut self.segments {
-            segment.build_matrix(model.clone());
-        }
-    }
-
+    /// Submits the PbrModel to the [`RenderScene`] to be rendered
+    ///
+    /// Passes the model to the [`RenderScene`]. The [`RenderScene`]
+    /// holds this struct by reference, so this struct must outlive the [`RenderScene`].
+    ///
+    /// [`RenderScene`]: opengl_render::renderer::RenderScene
     pub fn render<'a>(&'a self, scene: &mut RenderScene<'a>) {
         let camera: Vector3<f32> = (*scene.get_scene_data().get_camera_pos()).into();
         let object: Vector3<f32> = self.position.into();
@@ -288,35 +243,83 @@ impl PbrModel {
         }
     }
 
+    /// Rebuilds the transformation matrices for the model
+    ///
+    /// You likely won't need to use this. This needs to be called when the position or rotation is modified. 
+    /// When modifying the position or rotation with a function like `relative_move` or
+    /// `relative_rotate` this will automatically be called.
+    pub fn build_matrix(&mut self) {
+        let rotation_mat = Matrix4::from_angle_x(self.rotation.x)
+            * Matrix4::from_angle_y(self.rotation.y)
+            * Matrix4::from_angle_z(self.rotation.z);
+        let translation = Matrix4::from_translation(self.position);
+
+        let model = translation * rotation_mat;
+
+        for segment in &mut self.segments {
+            segment.build_matrix(model.clone());
+        }
+    }
+
+    /// Moves the model
+    ///
+    /// Used to translate the object relative to its current position.
+    ///
+    /// # Example
+    /// 
+    /// ```
+    /// model.relative_move([1.0, 0.0, 0.0]);
+    /// ```
     pub fn relative_move(&mut self, position: impl Into<Vector3<f32>>) {
         self.position = self.position + position.into();
         self.build_matrix();
     }
 
+    /// Rotates the model
+    ///
+    /// Used to rotate the object relative to its current rotation.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// model.relative_rotate([Rad(0.0), Rad(0.0), Rad(std::f32::consts::PI/2.0)]);
+    /// ```
     pub fn relative_rotate(&mut self, rotation: impl Into<Vector3<Rad<f32>>>) {
+        
         let rotation = rotation.into();
         self.rotation[0] += rotation[0];
         self.rotation[1] += rotation[1];
         self.rotation[2] += rotation[2];
         self.build_matrix();
     }
-    pub fn get_material(&self) -> &PBR {
-        &self.material
-    }
-    pub fn get_material_mut(&mut self) -> &mut PBR {
-        &mut self.material
-    }
 
+    /// Retrieve the segments of the model
     pub fn get_segments(&self) -> &Vec<PbrModelSegment> {
         &self.segments
     }
+
+    /// Retrieve the segments of the model
+    ///
+    /// Can be useful for changing a segment's material. 
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let segment = self.get_segments_mut().get_mut(0)?;
+    /// 
+    /// // Modify the material that belongs to the segment
+    /// segment.get_material_mut();
+    /// ```
     pub fn get_segments_mut(&mut self) -> &mut Vec<PbrModelSegment> {
         &mut self.segments
     }
+
+    /// Retrieve the position of the model
     pub fn get_position(&self) -> &Vector3<f32> {
         &self.position
     }
 
+    /// Retrieve the rotation of the model
     pub fn get_rotation(&self) -> &Vector3<Rad<f32>> {
         &self.rotation
     }

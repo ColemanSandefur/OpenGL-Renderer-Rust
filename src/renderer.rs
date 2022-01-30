@@ -12,6 +12,9 @@ use glium::index::IndicesSource;
 use glium::{vertex::VerticesSource, Display};
 use glium::{DrawError, DrawParameters, Frame, Program, Surface};
 
+/// Main renderer of the program
+///
+/// Currently its only use is to generate a [`RenderScene`] which renders a single frame.
 // Holds special information about the renderer
 // I don't know if this will be needed, but it is here for future use if needed
 pub struct Renderer {
@@ -28,7 +31,10 @@ impl Renderer {
     }
 }
 
-// Holds the information needed to render an item
+/// Holds the information needed to render an item
+///
+/// When an item is submitted to the [`RenderScene`], a `RenderEntry` is created which holds the
+/// vertex and index buffers, and the material that will be used to render the model.
 pub struct RenderEntry<'a> {
     vertex_buffer: VerticesSource<'a>,
     index_buffer: IndicesSource<'a>,
@@ -36,7 +42,11 @@ pub struct RenderEntry<'a> {
 }
 
 impl<'a> RenderEntry<'a> {
-    // world is a transformation matrix
+    /// Render the buffers
+    ///
+    /// Uses the index and vertex buffers along with the material to render to the surface.
+    ///
+    /// World is a pre-computed transformation matrix
     pub fn render(self, surface: &mut Renderable, scene: &SceneData, world: [[f32; 4]; 4]) {
         let camera = scene.camera;
 
@@ -51,7 +61,10 @@ impl<'a> RenderEntry<'a> {
     }
 }
 
-// Passed to the renderer so that every shader can use the information
+/// Scene specific data
+/// 
+/// Contains information that should belong to the scene, such as the camera position, and skybox.
+/// It is also passed to the [`Material`](crate::material::Material) during rendering so that every shader can use the information
 pub struct SceneData<'a> {
     camera: [[f32; 4]; 4],
     camera_pos: [f32; 3],
@@ -85,15 +98,20 @@ impl<'a> Default for SceneData<'a> {
     }
 }
 
-// Every frame will create a RenderScene, this will hold information like light sources,
-// camera position and the skybox. When finish() is called it will render all the entries.
+/// A struct responsible for rendering a single frame
+///
+/// When you want to render a frame, you must first generate a `RenderScene` from [`Renderer`].
+/// Then you set the scene related variables (most of which are found at [`SceneData`]). Then you
+/// can publish a model to be rendered by calling `publish` on the `RenderScene`. When you finish
+/// giving the scene data, you call `finish` and the `RenderScene` will be consumed and render
+/// everything that was published to it.
 pub struct RenderScene<'a> {
     scene_data: SceneData<'a>,
     entries: HashMap<TypeId, Vec<RenderEntry<'a>>>,
 }
 
 impl<'a> RenderScene<'a> {
-    // Add an item to be rendered
+    /// Add an item to be rendered
     pub fn publish<V, I>(&mut self, vertex_buffer: V, index_buffer: I, material: &'a dyn Material)
     where
         V: Into<VerticesSource<'a>>,
@@ -114,7 +132,7 @@ impl<'a> RenderScene<'a> {
         self.entries.get_mut(&type_id).unwrap().push(entry);
     }
 
-    // Used by renderer only
+    /// Used by renderer only
     fn new() -> Self {
         Self {
             scene_data: Default::default(),
@@ -145,7 +163,7 @@ impl<'a> RenderScene<'a> {
         &self.scene_data
     }
 
-    // Render all the items
+    /// Render all the items that have been submitted
     pub fn finish(mut self, surface: &mut Renderable) {
         let skybox = match &self.scene_data.skybox {
             Some(skybox) => self.entries.remove(&skybox.get_skybox().as_any().type_id()),
@@ -172,8 +190,12 @@ impl<'a> RenderScene<'a> {
     }
 }
 
-// Used for drawing with materials
-// Need to add the other implementors but too lazy right now.
+/// Used for drawing with [`Material`]
+///
+/// Since [`Material`] is a trait that needs to be made into an object, it cannot have generics. I
+/// made this `Renderable` enum to have a way to render to a frame, or a frame buffer.
+///
+/// I Need to add the other implementors but too lazy right now.
 pub enum Renderable<'a> {
     Frame(&'a mut Frame),
     SimpleFrameBuffer(&'a mut SimpleFrameBuffer<'a>),

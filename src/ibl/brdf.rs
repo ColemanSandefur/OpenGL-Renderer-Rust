@@ -5,13 +5,13 @@ use std::{sync::Arc, path::PathBuf};
 use crate::{vertex::Vertex};
 
 #[derive(Clone)]
-pub struct BDRF {
+pub struct BRDF {
     program: Arc<Program>,
     vertex_buffer: Arc<VertexBuffer<Vertex>>,
     index_buffer: Arc<IndexBuffer<u32>>,
 }
 
-impl BDRF {
+impl BRDF {
     pub fn new(facade: &impl Facade) -> Self {
         let program = crate::material::load_program(facade, "./shaders/brdf/".into());
         let vertex_buffer = VertexBuffer::new(facade, &get_quad_vertices()).unwrap();

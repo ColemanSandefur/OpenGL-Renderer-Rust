@@ -1,8 +1,10 @@
 pub mod irradiance_conversion;
-pub mod specular;
+pub mod brdf;
+pub mod prefilter;
 
 pub use irradiance_conversion::*;
-pub use specular::*;
+pub use brdf::*;
+pub use prefilter::*;
 
 use crate::{camera::Camera, texture::TextureLoader};
 use cgmath::Rad;
@@ -19,7 +21,7 @@ pub struct Ibl {
 
 // given a cubemap, this function will generate all the necessary files to be used for image based
 // lighting
-pub fn generate_ibl_from_cubemap(facade: &impl Facade, cubemap: &CubemapType, output_directory: PathBuf, ir: IrradianceConverter, prefilter: Prefilter, brdf: BDRF){
+pub fn generate_ibl_from_cubemap(facade: &impl Facade, cubemap: &CubemapType, output_directory: PathBuf, ir: IrradianceConverter, prefilter: Prefilter, brdf: BRDF){
     let pf_dir = output_directory.join("prefilter");
     let ir_dir = output_directory.join("ibl_map");
     let brdf_dir = output_directory.join("brdf.png");

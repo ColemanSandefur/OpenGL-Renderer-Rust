@@ -1,7 +1,9 @@
+//! Basic Vertex implementation
+//!
+//! The [`Renderer`](crate::renderer::Renderer) should accept any Vertex implementation but this is
+//! the default implementation
 use cgmath::{Matrix4, SquareMatrix};
 
-// Basic Vertex implementation
-// The Renderer should accept any Vertex implementation
 #[derive(Clone, Copy)]
 pub struct Vertex {
     pub position: [f32; 3],

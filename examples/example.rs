@@ -1,24 +1,24 @@
 use std::path::PathBuf;
-
 use opengl_render::ibl::Ibl;
-
 use cgmath::Rad;
 use opengl_render::camera::Camera;
 use opengl_render::cubemap_loader::{CubemapLoader};
-use opengl_render::ibl::{IrradianceConverter, Prefilter, BDRF};
+use opengl_render::ibl::{IrradianceConverter, Prefilter, BRDF};
 use opengl_render::material::{Equirectangle, SkyboxMat, PBR};
 use opengl_render::pbr_model::PbrModel;
 use opengl_render::skybox::Skybox;
 use opengl_render::support::System;
 use opengl_render::{glium::Surface, renderer::Renderer};
 
-// Rad / millisecond that should be rotated to get 1 RPM
-const RPM: f32 = std::f32::consts::PI * 2.0 / 60.0 / 1000.0;
-
 fn main() {
+    // Path of the equirectangular texture that will be converted to a cubemap
     let skybox_file = PathBuf::from("./examples/ibl/Summi_Pool/Summi_Pool_3k.hdr");
+
+    // Output directory for generated cubemaps
     let ibl_dir = PathBuf::from("./examples/ibl/Summi_Pool/");
-    let model_dir = PathBuf::from("./examples/models/primitives/cube.glb");
+
+    // Directory of the model to be loaded
+    let model_dir = PathBuf::from("./examples/models/primitives/cube.obj");
 
     // Create the window and opengl instance
     let display = System::init("renderer");
@@ -50,7 +50,7 @@ fn main() {
     // Load the necessary shaders from the file system
     let irradiance_converter = IrradianceConverter::load(&*display.display);
     let prefilter_shader = Prefilter::load(&*display.display);
-    let brdf_shader = BDRF::new(&*display.display);
+    let brdf_shader = BRDF::new(&*display.display);
 
     // Load the skybox again to generate the maps
     let ibl_cubemap = CubemapLoader::load_from_fs(
@@ -88,23 +88,20 @@ fn main() {
     //
 
     // This doesn't have to be a vec, but it makes loading multiple models more convenient
-    let mut models = vec![PbrModel::load_from_gltf(
+    let mut models = vec![PbrModel::load_from_fs(
         model_dir,
         &*display.display,
         pbr.clone(),
     )];
 
-    models[0].relative_move([0.0, 0.0, 3.0]);
-
-    // Rotate the object at 10 RPM
-    let rotation = RPM * 10.0;
+    models[0].relative_move([0.0, 0.0, 4.0]);
 
     let camera_pos = [0.0, 0.0, 0.0];
 
     display.main_loop(
         move |_, _| {},
         move |frame, delta_time| {
-            // Time between frames
+            // Time between frames should be used when moving or rotating objects
             let delta_ms = delta_time.as_micros() as f32 / 1000.0;
 
             // To render a frame, we must begin a new scene.
@@ -134,11 +131,6 @@ fn main() {
             // to render to the frame we must first convert it to the Renderable enum, then you can
             // render the scene.
             scene.finish(&mut frame.into());
-
-            // Manipulate model
-            for model in &mut models {
-                model.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
-            }
         },
     );
 }
