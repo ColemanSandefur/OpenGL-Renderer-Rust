@@ -10,6 +10,7 @@ I'd recommend checking it out if you are interested in OpenGL!
 # Table of contents
 
 1. [Current Features](#current-features)
+1. [Examples](#examples)
 1. [Screenshots](#screenshots)
 1. [Architecture](#current-architecture)
 
@@ -20,6 +21,12 @@ Below is what I have done so far:
     * PBR Reflections
 * Skybox
 * Phong rendering
+
+# Examples
+There are examples available in the examples folder. To run an example use `cargo run --release --example example-name` 
+where `example-name` is the name of the example without ".rs". To get a list of all examples run `cargo run --example`.
+
+The skybox(s) that are bundled with the examples are from the [sIBL Archive](http://www.hdrlabs.com/sibl/archive.html)
 
 # Screenshots
 

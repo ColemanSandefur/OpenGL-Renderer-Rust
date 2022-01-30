@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use opengl_render::ibl::Ibl;
 
 use cgmath::Rad;
@@ -14,6 +16,10 @@ use opengl_render::{glium::Surface, renderer::Renderer};
 const RPM: f32 = std::f32::consts::PI * 2.0 / 60.0 / 1000.0;
 
 fn main() {
+    let skybox_file = PathBuf::from("./examples/ibl/Summi_Pool/Summi_Pool_3k.hdr");
+    let ibl_dir = PathBuf::from("./examples/ibl/Summi_Pool/");
+    let model_dir = PathBuf::from("./examples/models/primitives/cube.glb");
+
     // Create the window and opengl instance
     let display = System::init("renderer");
 
@@ -26,8 +32,8 @@ fn main() {
     // This generated cubemap will be used as the skybox
     let compute = Equirectangle::load_from_fs(&*display.display);
     compute.compute_from_fs_hdr(
-        "./ibl/Summi_Pool/Summi_Pool_3k.hdr".into(),
-        "./ibl/Summi_Pool/cubemap/".into(),
+        skybox_file,
+        ibl_dir.join("cubemap/"),
         "png",
         &*display.display,
         Camera::new(Rad(std::f32::consts::PI * 0.5), 1024, 1024).into(),
@@ -48,16 +54,16 @@ fn main() {
 
     // Load the skybox again to generate the maps
     let ibl_cubemap = CubemapLoader::load_from_fs(
-        "./ibl/Summi_Pool/cubemap/".into(),
+        ibl_dir.join("cubemap/"),
         "png",
         &*display.display,
     );
 
     // Generate the maps and store them to the file system
-    opengl_render::ibl::generate_ibl_from_cubemap(&*display.display, &ibl_cubemap, "./ibl/Summi_Pool".into(), irradiance_converter, prefilter_shader, brdf_shader);
+    opengl_render::ibl::generate_ibl_from_cubemap(&*display.display, &ibl_cubemap, ibl_dir.clone(), irradiance_converter, prefilter_shader, brdf_shader);
 
     // Load the skybox from the file system
-    let skybox_mat = SkyboxMat::load_from_fs(&*display.display, "./ibl/Summi_Pool/cubemap/", "png");
+    let skybox_mat = SkyboxMat::load_from_fs(&*display.display, ibl_dir.join("cubemap/"), "png");
     // Will hold the generated maps
     let mut skybox = Skybox::new(&*display.display, skybox_mat);
 
@@ -66,7 +72,7 @@ fn main() {
         prefilter,
         irradiance_map: ibl,
         brdf,
-    } = opengl_render::ibl::load_ibl_fs(&*display.display, "./ibl/Summi_Pool".into());
+    } = opengl_render::ibl::load_ibl_fs(&*display.display, ibl_dir);
 
     // Assign irradiance map, prefilter map and brdf to the skybox wrapper
     skybox.set_ibl(Some(ibl));
@@ -83,7 +89,7 @@ fn main() {
 
     // This doesn't have to be a vec, but it makes loading multiple models more convenient
     let mut models = vec![PbrModel::load_from_gltf(
-        "./models/mandalorian/mando.glb".into(),
+        model_dir,
         &*display.display,
         pbr.clone(),
     )];
