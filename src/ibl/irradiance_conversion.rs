@@ -22,7 +22,7 @@ impl IrradianceConverter {
 
     pub fn calculate_to_fs(
         &self,
-        cubemap: CubemapType,
+        cubemap: &CubemapType,
         destination_dir: PathBuf,
         extension: &str,
         facade: &impl Facade,
@@ -33,7 +33,7 @@ impl IrradianceConverter {
         camera.set_height(output_size.1);
         let generate_uniforms = |projection, view| {
             uniform! {
-                environment_map: &cubemap,
+                environment_map: cubemap,
                 projection: projection,
                 view: view,
             }

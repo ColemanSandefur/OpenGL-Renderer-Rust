@@ -64,24 +64,24 @@ impl BDRF {
 
 fn get_quad_vertices() -> Vec<Vertex> {
     vec![
-        Vertex {
+        Vertex { // Top Left
             position: [-1.0, 1.0, 0.0],
-            tex_coords: [0.0, 1.0],
-            .. Default::default()
-        },
-        Vertex {
-            position: [1.0, 1.0, 0.0],
-            tex_coords: [1.0, 1.0],
-            .. Default::default()
-        },
-        Vertex {
-            position: [-1.0, -1.0, 0.0],
             tex_coords: [0.0, 0.0],
             .. Default::default()
         },
-        Vertex {
-            position: [1.0, -1.0, 0.0],
+        Vertex { // Top Right
+            position: [1.0, 1.0, 0.0],
             tex_coords: [1.0, 0.0],
+            .. Default::default()
+        },
+        Vertex { // Bottom Left
+            position: [-1.0, -1.0, 0.0],
+            tex_coords: [0.0, 1.0],
+            .. Default::default()
+        },
+        Vertex { // Bottom Right
+            position: [1.0, -1.0, 0.0],
+            tex_coords: [1.0, 1.0],
             .. Default::default()
         },
     ]

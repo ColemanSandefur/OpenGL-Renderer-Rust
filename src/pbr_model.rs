@@ -12,7 +12,6 @@ use glium::{IndexBuffer, VertexBuffer};
 use russimp::material::PropertyTypeInfo::FloatArray;
 use russimp::scene::PostProcess;
 use russimp::scene::Scene;
-use russimp::Vector3D;
 use std::path::PathBuf;
 use tobj::LoadOptions;
 
@@ -281,7 +280,7 @@ impl PbrModel {
         let distance = object.distance(camera);
 
         if distance >= 5.0 {
-            return;
+            // Change LOD
         }
 
         for item in &self.segments {

@@ -13,4 +13,5 @@ pub mod renderer;
 pub mod shape;
 pub mod skybox;
 pub mod support;
+pub mod texture;
 pub mod vertex;

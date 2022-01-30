@@ -32,11 +32,6 @@ impl Prefilter {
 
         let cubemap_render = CubemapRender::new(facade);
 
-        let cubemap_mip = match cubemap {
-            CubemapType::Cubemap(c) => c.get_mipmap_levels(),
-            CubemapType::SrgbCubemap(c) => c.get_mipmap_levels(),
-        };
-
         let mip_levels = Self::MAX_MIP_LEVELS;
 
         for level in 0..mip_levels as i32 {
