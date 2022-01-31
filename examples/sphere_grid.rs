@@ -1,16 +1,29 @@
+use opengl_render::material::PBRTextures;
+use opengl_render::material::PBRParams;
 use std::path::PathBuf;
 use opengl_render::ibl::Ibl;
 use cgmath::Rad;
 use opengl_render::camera::Camera;
-use opengl_render::cubemap_loader::CubemapLoader;
+use opengl_render::cubemap_loader::{CubemapLoader};
 use opengl_render::ibl::{IrradianceConverter, Prefilter, BRDF};
+use cgmath::Vector3;
+use glium::backend::Facade;
 use opengl_render::material::{Equirectangle, SkyboxMat, PBR};
 use opengl_render::pbr_model::PbrModel;
 use opengl_render::skybox::Skybox;
 use opengl_render::support::System;
 use opengl_render::{glium::Surface, renderer::Renderer};
 
+const RPM: f32 = std::f32::consts::PI * 2.0 / 60.0 / 1000.0;
+
+// How many spheres should be rendered
+const WIDTH: u32 = 80;
+const HEIGHT: u32 = 80;
+
 fn main() {
+    // A stress test of the renderer, we will render 6,400 spheres on a plane. This results in around 25.5 million triangles (4,000 per
+    // sphere). On my gaming computer I am able to run this at around 30 fps.
+
     // Path of the equirectangular texture that will be converted to a cubemap
     let skybox_file = PathBuf::from("./examples/ibl/Summi_Pool/Summi_Pool_3k.hdr");
 
@@ -18,7 +31,7 @@ fn main() {
     let ibl_dir = PathBuf::from("./examples/ibl/Summi_Pool/");
 
     // Directory of the model to be loaded
-    let model_dir = PathBuf::from("./examples/models/primitives/cube.glb");
+    let model_dir = PathBuf::from("./examples/models/primitives/sphere.glb");
 
     // Create the window and opengl instance
     let display = System::init("renderer");
@@ -87,14 +100,11 @@ fn main() {
     // Here we will load the model that will be rendered
     //
 
-    // This doesn't have to be a vec, but it makes loading multiple models more convenient
-    let mut models = vec![PbrModel::load_from_fs(
-        model_dir,
-        &*display.display,
-        pbr.clone(),
-    )];
+    let mut models = generate_cubes(WIDTH, HEIGHT, [0.0, 0.0, 250.0].into(), &*display.display, pbr.clone(), model_dir);
 
-    models[0].relative_move([0.0, 0.0, 4.0]);
+    models[0].relative_move([0.0, 0.0, 3.0]);
+
+    let rotation = RPM * 10.0;
 
     let camera_pos = [0.0, 0.0, 0.0];
 
@@ -103,6 +113,7 @@ fn main() {
         move |frame, delta_time| {
             // Time between frames should be used when moving or rotating objects
             let delta_ms = delta_time.as_micros() as f32 / 1000.0;
+            println!("frame-time: {:>7.3}, fps: {:.0}", delta_ms, 1000.0 / delta_ms);
 
             // To render a frame, we must begin a new scene.
             // The scene will keep track of variables that apply to the whole scene, like the
@@ -131,6 +142,67 @@ fn main() {
             // to render to the frame we must first convert it to the Renderable enum, then you can
             // render the scene.
             scene.finish(&mut frame.into());
+
+            // Rotate all objects
+            // Since they are spheres you won't see them rotate, but it shows how performant
+            // translating and rotating an object is.
+            for model in &mut models {
+                model.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
+            }
         },
     );
+}
+
+fn generate_cubes(
+    width: u32,
+    height: u32,
+    offset: Vector3<f32>,
+    facade: &impl Facade,
+    pbr: PBR,
+    model: PathBuf,
+) -> Vec<PbrModel> {
+    let mut models = Vec::with_capacity((width * height) as usize);
+
+    let gap = 3.0;
+    let top_left = offset
+        - Vector3::new(
+            (width - 1) as f32 / 2.0 * gap,
+            (height - 1) as f32 / 2.0 * gap,
+            0 as f32,
+        );
+
+    let model = PbrModel::load_from_fs(
+        model,
+        &*facade,
+        pbr.clone(),
+    );
+
+
+    for row in 0..height {
+        let metallic = row as f32 / height as f32;
+        for column in 0..width {
+            let roughness = (column as f32 / width as f32).max(0.05);
+            let mut model = model.clone();
+
+            {
+                let segments = model.get_segments_mut();
+                let mut material = PBRParams::default();
+
+                material.albedo = [0.5, 0.0, 0.0].into();
+                material.metallic = metallic;
+                material.roughness = roughness;
+
+                segments[0]
+                    .get_material_mut()
+                    .set_pbr_params(PBRTextures::from_params(material, facade));
+            }
+
+            model
+                .relative_move(top_left + Vector3::new(gap * column as f32, gap * row as f32, 0.0));
+
+            models.push(model);
+        }
+    }
+
+    models
 }

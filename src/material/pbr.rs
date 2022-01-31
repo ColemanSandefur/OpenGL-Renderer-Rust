@@ -1,4 +1,4 @@
-use cgmath::Vector3;
+use cgmath::{Vector3, Matrix4};
 use glium::backend::Facade;
 use glium::index::IndicesSource;
 use glium::texture::Texture2d;
@@ -132,6 +132,7 @@ pub struct PBR {
     program: Arc<Program>,
     pbr_params: PBRTextures,
     context: Rc<Context>,
+    model: Matrix4<f32>,
 }
 
 impl PBR {
@@ -146,6 +147,7 @@ impl PBR {
             program: Arc::new(program),
             pbr_params: params,
             context: facade.get_context().clone(),
+            model: Matrix4::from_translation([0.0; 3].into()),
         }
     }
 
@@ -168,6 +170,14 @@ impl PBR {
     pub fn set_light_color(&mut self, color: impl Into<Vector3<f32>>) {
         self.light_color = color.into();
     }
+
+    pub fn set_model_matrix(&mut self, model: Matrix4<f32>) {
+        self.model = model;
+    }
+
+    pub fn get_model_matrix(&self) -> &Matrix4<f32> {
+        &self.model
+    }
 }
 
 impl Material for PBR {
@@ -183,6 +193,7 @@ impl Material for PBR {
         let light_pos: [f32; 3] = self.light_pos.clone().into();
         let light_color: [f32; 3] = self.light_color.clone().into();
         let camera_pos: [f32; 3] = [position[3][0], position[3][1], position[3][2]];
+        let model_matrix: [[f32; 4]; 4] = self.model.into();
 
         let skybox_obj = scene_data.get_skybox().unwrap();
         let skybox = skybox_obj.get_skybox().get_cubemap();
@@ -198,6 +209,7 @@ impl Material for PBR {
                     light_color: light_color,
                     projection: camera,
                     view: position,
+                    model: model_matrix,
                     camera_pos: camera_pos,
                     albedo_map: &*self.pbr_params.albedo,
                     metallic_map: &*self.pbr_params.metallic,

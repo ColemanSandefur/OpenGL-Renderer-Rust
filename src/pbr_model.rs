@@ -40,9 +40,7 @@ impl PbrModelSegment {
     /// 
     /// You shouldn't need to use this.
     pub fn build_matrix(&mut self, model: Matrix4<f32>) {
-        for vert in &mut *self.vertex_buffer.map() {
-            vert.model = model.into();
-        }
+        self.material.set_model_matrix(model);
     }
 
     pub fn render<'a>(&'a self, scene: &mut RenderScene<'a>) {
@@ -57,6 +55,24 @@ impl PbrModelSegment {
     }
     pub fn set_material(&mut self, material: PBR) {
         self.material = material;
+    }
+}
+
+impl Clone for PbrModelSegment {
+    fn clone(&self) -> Self {
+        let facade = self.vertex_buffer.get_context();
+        let index_data = self.index_buffer.read().unwrap();
+        let vertex_data = self.vertex_buffer.read().unwrap();
+
+        let index_buffer = IndexBuffer::new(facade, self.index_buffer.get_primitives_type(), &index_data).unwrap();
+        let vertex_buffer = VertexBuffer::new(facade, &vertex_data).unwrap();
+        let material = self.material.clone();
+
+        Self {
+            index_buffer,
+            vertex_buffer,
+            material,
+        }
     }
 }
 
@@ -83,6 +99,7 @@ impl PbrModelSegment {
 /// // Submit the model to be rendered
 /// model.render(&mut scene);
 /// ```
+#[derive(Clone)]
 pub struct PbrModel {
     position: Vector3<f32>,
     rotation: Vector3<Rad<f32>>,
@@ -173,7 +190,6 @@ impl PbrModel {
                 // obj
                 if property.key == "$clr.diffuse" {
                     if let FloatArray(data) = &property.data {
-                        println!("{:?}", [data[0], data[1], data[2]]);
                         basic_mat.set_albedo([data[0], data[1], data[2]]);
                     }
                 } else if property.key == "$mat.shininess" {
@@ -184,8 +200,6 @@ impl PbrModel {
                         basic_mat.set_roughness(roughness);
                     }
                 }
-
-                println!("{:?}", property);
             }
             material.set_pbr_params(PBRTextures::from_params(basic_mat, facade));
 

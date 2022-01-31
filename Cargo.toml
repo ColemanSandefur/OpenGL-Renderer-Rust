@@ -8,6 +8,10 @@ edition = "2021"
 name = "example"
 path = "examples/example.rs"
 
+[[example]]
+name = "sphere_grid"
+path = "examples/sphere_grid.rs"
+
 [dependencies]
 #glutin = "0.28.0"
 glium = { version = "*", default-features = true }

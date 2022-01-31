@@ -95,7 +95,6 @@ impl CubemapLoader {
                 .into_iter()
                 .map(|path| {
                     let image = ImageReader::open(path).unwrap().decode().unwrap();
-                    println!("dimensions: {:?}", image.dimensions());
 
                     image
                 });
