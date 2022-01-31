@@ -1,4 +1,9 @@
 use cgmath::{Matrix4, Rad};
+
+/// Basic camera implementation
+///
+/// A helper struct that represents a camera. fovy is the vertical field of view (in radians),
+/// width and height are screen dimensions.
 #[derive(Clone, Copy)]
 pub struct Camera {
     fovy: Rad<f32>,
@@ -24,6 +29,10 @@ impl Camera {
     pub fn set_height(&mut self, height: u32) {
         self.height = height;
     }
+
+    /// The camera matrix to be used in materials.
+    ///
+    /// Generates the matrix on every call
     pub fn get_matrix(&self) -> Matrix4<f32> {
         let aspect_ratio = self.width as f32 / self.height as f32;
 

@@ -18,12 +18,12 @@ use glium::{DrawError, DrawParameters, Frame, Program, Surface};
 // Holds special information about the renderer
 // I don't know if this will be needed, but it is here for future use if needed
 pub struct Renderer {
-    display: Display,
+    _display: Display,
 }
 
 impl Renderer {
     pub fn new(display: Display) -> Self {
-        Self { display }
+        Self { _display: display }
     }
 
     pub fn begin_scene(&self) -> RenderScene {

@@ -110,7 +110,9 @@ use crate::renderer::SceneData;
 pub trait Material: 'static {
     /// Render the material
     ///
-    /// Renders the given index and vertex buffers to the given surface
+    /// Renders the given index and vertex buffers to the given surface. This also gives you access
+    /// to the struct that implements this trait. That is how you can render materials with
+    /// unique variables
     fn render<'a>(
         &self,
         vertex_buffer: VerticesSource<'a>,
@@ -124,7 +126,12 @@ pub trait Material: 'static {
     fn to_any(self) -> Box<dyn Any>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    /// Determines if the passed material is the same type and has the same content. Might be used
+    /// for batching later on (group objects with identical materials).
     fn equal(&self, material: &dyn Any) -> bool;
+
+    /// Determines if the passed material is the same type
     fn same_material(&self, material: &dyn Any) -> bool
     where
         Self: Sized,
@@ -132,7 +139,32 @@ pub trait Material: 'static {
         material.is::<Self>()
     }
 
+    /// Cloning where you don't have the concrete type.
+    ///
+    /// Usually [`clone_sized`] is more useful as it keeps the concrete type.
+    ///
+    /// [`clone_sized`]: Self::clone_sized
     fn clone_material(&self) -> Box<dyn Material>;
+    
+    /// Cloning where you know the type.
+    ///
+    /// Can be extremely useful with generics, as it will keep its type.
+    ///
+    /// # Example
+    /// ```
+    /// struct Mat<T: Material> {
+    ///     material: T
+    /// }
+    ///
+    /// impl<T: Material> Clone for Mat<T> {
+    ///     fn clone(&self) -> Self {
+    ///         Self {
+    ///             // clone_material would not work since it is not a concrete type
+    ///             material: self.material.clone_sized()
+    ///         }
+    ///     }
+    /// }
+    /// ```
     fn clone_sized(&self) -> Self
     where
         Self: Sized;

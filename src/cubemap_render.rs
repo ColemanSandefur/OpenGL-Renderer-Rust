@@ -12,6 +12,11 @@ use crate::{camera::Camera, vertex::Vertex};
 
 // Renders all 6 sides of a cubemap to individual textures
 // Currently just saves the textures to the file system
+/// Converts a cubemap to 6 textures.
+///
+/// This will render the given cubemap into 6 individual textures. An example of it being useful is when generating the
+/// prefilter map. It renders the skybox multiple times with each time getting blurrier. I used the
+/// CubemapRender to render the skybox and save it to the file system.
 pub struct CubemapRender {
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: glium::index::NoIndices,
@@ -30,6 +35,12 @@ impl CubemapRender {
     ];
     const FILE_NAMES: [&'static str; 6] = ["right", "left", "top", "bottom", "front", "back"];
 
+    /// Create a CubemapRender.
+    /// 
+    /// You should probably refrain from calling this very often since it creates a [`VertexBuffer`]
+    /// which can be expensive. It is better to create one CubemapRender and pass it around.
+    ///
+    /// [`VertexBuffer`]: glium::VertexBuffer
     pub fn new(facade: &impl Facade) -> Self {
         let vertex_buffer = VertexBuffer::new(facade, &get_cube_vertices()).unwrap();
 
@@ -41,6 +52,10 @@ impl CubemapRender {
         }
     }
 
+    /// Called to render to the file system
+    ///
+    /// output_dimensions is the dimensions of the desired texture. gen_uniforms is called once for
+    /// every side of the cubemap.
     pub fn render<'a, 'b, U>(
         &self,
         output_dimensions: (u32, u32),
@@ -126,6 +141,9 @@ impl CubemapRender {
         }
     }
 }
+
+/// Used to generate cube vertices for the [`CubemapRender`] to use, it is not entirely meant to be
+/// used by the crate users. Use at your own risk.
 pub fn get_cube_vertices() -> Vec<Vertex> {
     let output = vec![
         Vertex {

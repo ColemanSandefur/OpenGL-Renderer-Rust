@@ -8,6 +8,13 @@ use glium::VertexBuffer;
 use crate::material::SkyboxMat;
 use crate::vertex::Vertex;
 
+/// Holds information about a skybox.
+///
+/// You should use this to load a skybox. Skyboxes are mostly used with the [`RenderScene`] so that
+/// any material can access it. You can also set the image lighting, prefilter, and brdf maps which
+/// are used with [`PBR`].
+///
+/// [`PBR`]: crate::material::pbr::PBR
 pub struct Skybox {
     skybox: SkyboxMat,
     ibl: Option<CubemapType>,
@@ -85,6 +92,7 @@ impl Skybox {
             skybox,
         }
     }
+
     pub fn render<'a>(&'a self, scene: &mut RenderScene<'a>) {
         scene.publish(&self.vertex_buffer, &self.index_buffer, &self.skybox);
     }

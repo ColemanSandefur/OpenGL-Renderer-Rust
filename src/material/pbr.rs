@@ -243,13 +243,16 @@ impl Material for PBR {
         };
     }
 
-    fn equal(&self, material: &dyn Any) -> bool {
-        let simple = match material.downcast_ref::<Self>() {
-            Some(simple) => simple,
-            None => return false,
-        };
+    fn equal(&self, _material: &dyn Any) -> bool {
+        //let _simple = match material.downcast_ref::<Self>() {
+            //Some(simple) => simple,
+            //None => return false,
+        //};
 
+        // There is currently no implementation for checking if PbrTextures are equal so to
+        // avoid potential bugs, it will always return false
         false
+
         //simple.light_pos == self.light_pos
         //&& simple.light_color == self.light_color
         //&& self.pbr_params == simple.pbr_params

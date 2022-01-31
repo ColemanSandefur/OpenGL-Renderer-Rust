@@ -102,7 +102,7 @@ fn main() {
         move |_, _| {},
         move |frame, delta_time| {
             // Time between frames should be used when moving or rotating objects
-            let delta_ms = delta_time.as_micros() as f32 / 1000.0;
+            let _delta_ms = delta_time.as_micros() as f32 / 1000.0;
 
             // To render a frame, we must begin a new scene.
             // The scene will keep track of variables that apply to the whole scene, like the
