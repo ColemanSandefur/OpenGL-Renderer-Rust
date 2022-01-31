@@ -11,6 +11,10 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+/// Converts rectangular map into cubemap.
+///
+/// Most HDR environment maps consist of a sphere projected onto a rectangle, this material is
+/// designed to convert this equirectangle to a cubemap.
 #[derive(Clone)]
 pub struct Equirectangle {
     program: Arc<Program>,

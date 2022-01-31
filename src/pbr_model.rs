@@ -240,7 +240,7 @@ impl PbrModel {
     /// Passes the model to the [`RenderScene`]. The [`RenderScene`]
     /// holds this struct by reference, so this struct must outlive the [`RenderScene`].
     ///
-    /// [`RenderScene`]: opengl_render::renderer::RenderScene
+    /// [`RenderScene`]: crate::renderer::RenderScene
     pub fn render<'a>(&'a self, scene: &mut RenderScene<'a>) {
         let camera: Vector3<f32> = (*scene.get_scene_data().get_camera_pos()).into();
         let object: Vector3<f32> = self.position.into();

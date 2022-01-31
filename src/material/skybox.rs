@@ -10,6 +10,16 @@ use std::sync::Arc;
 
 use super::Material;
 
+/// Skybox shader.
+///
+/// This is responsible for rendering the skybox to the surface. The [`RenderScene`] renders this
+/// last to not draw pixels that would otherwise be overwritten by objects in the scene. You just
+/// need to provided a cubemap to be used as a skybox and it should just work. **It is recommended
+/// that you clone the `SkyboxMat` instead of creating a new one** since the methods `load_from_fs`
+/// and `load_from_cubemap` recompile the shader every time. After cloning you can just set the
+/// skybox using `set_cubemap`.
+/// 
+/// [`RenderScene`]: crate::renderer::RenderScene
 #[derive(Clone)]
 pub struct SkyboxMat {
     program: Arc<Program>,
@@ -65,6 +75,10 @@ impl SkyboxMat {
 
     pub fn get_cubemap(&self) -> &Arc<CubemapType> {
         &self.skybox
+    }
+
+    pub fn set_cubemap(&mut self, skybox: Arc<CubemapType>) {
+        self.skybox = skybox;
     }
 }
 impl Material for SkyboxMat {

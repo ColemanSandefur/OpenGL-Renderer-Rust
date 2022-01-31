@@ -3,7 +3,6 @@ use glium::backend::Facade;
 use glium::index::IndicesSource;
 use glium::texture::Texture2d;
 use glium::vertex::VerticesSource;
-use glium::Surface;
 use glium::{backend::Context, BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
 use std::rc::Rc;
@@ -11,22 +10,13 @@ use std::sync::Arc;
 
 use crate::cubemap_loader::CubemapType;
 use crate::renderer::{Renderable, SceneData};
+use crate::texture::TextureLoader;
 
 use super::Material;
 
-// Creates a texture based off of a single color.
-// Helper function for PBRTextures when converting from PBRParams
-pub fn create_texture(facade: &impl Facade, color: [f32; 3]) -> Texture2d {
-    let texture = Texture2d::empty(facade, 1, 1).unwrap();
-    texture
-        .as_surface()
-        .clear_color(color[0], color[1], color[2], 1.0);
-
-    texture
-}
-
-// Basic definition of physically based rendering parameters.
-// Now used for easy creation of PBRTextures
+/// Basic definition of physically based rendering parameters.
+///
+/// Now used for easy creation of [`PBRTextures`] which will create a texture for each value
 #[derive(Clone, Debug)]
 pub struct PBRParams {
     pub albedo: Vector3<f32>,
@@ -36,6 +26,7 @@ pub struct PBRParams {
 }
 
 impl PBRParams {
+    /// Simple red material
     pub fn sample() -> Self {
         Self {
             albedo: [1.0, 0.0, 0.0].into(),
@@ -45,11 +36,12 @@ impl PBRParams {
         }
     }
 
+    /// Simple metal material
     pub fn metal() -> Self {
         Self {
             albedo: [0.7, 0.7, 0.7].into(),
-            metallic: 0.75,
-            roughness: 0.24,
+            metallic: 1.0,
+            roughness: 0.05,
             ao: 1.0,
         }
     }
@@ -62,6 +54,8 @@ impl PBRParams {
     pub fn set_roughness(&mut self, roughness: f32) {
         self.roughness = roughness;
     }
+
+    /// Set ambient occlusion
     pub fn set_ao(&mut self, ao: f32) {
         self.ao = ao;
     }
@@ -100,11 +94,13 @@ pub struct PBRTextures {
 
 impl PBRTextures {
     pub fn from_params(params: PBRParams, facade: &impl Facade) -> Self {
+        let create_texture = TextureLoader::from_memory_rgbf32;
+        let albedo_slice: &[f32; 3] = params.albedo.as_ref();
         Self {
-            albedo: Arc::new(create_texture(facade, params.albedo.into())),
-            metallic: Arc::new(create_texture(facade, [params.metallic; 3])),
-            roughness: Arc::new(create_texture(facade, [params.roughness; 3])),
-            ao: Arc::new(create_texture(facade, [params.ao; 3])),
+            albedo: Arc::new(create_texture(facade, albedo_slice, 1, 1).unwrap()),
+            metallic: Arc::new(create_texture(facade, &[params.metallic; 3], 1, 1).unwrap()),
+            roughness: Arc::new(create_texture(facade, &[params.roughness; 3], 1, 1).unwrap()),
+            ao: Arc::new(create_texture(facade, &[params.ao; 3], 1, 1).unwrap()),
         }
     }
 
@@ -125,6 +121,14 @@ impl PBRTextures {
     }
 }
 
+/// Physically Based Rendering shader.
+///
+/// This struct is responsible for handling physically based rendering. It holds the necessary
+/// parameters for PBR to function like how metallic the object is, and model transformations.
+/// Every object will have their own `PBR` to handle the object's properties. Cloning should be
+/// fairly cheap, so even if you have multiple objects that have differing materials, **it is
+/// recommended to clone this struct instead of creating a new one** since it will have to reload the
+/// program from the file system. To render you use the [`Material`] trait.
 #[derive(Clone)]
 pub struct PBR {
     light_pos: Vector3<f32>,

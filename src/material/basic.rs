@@ -49,6 +49,9 @@ impl Default for MaterialParams {
     }
 }
 
+/// Just a basic shader.
+///
+/// This shader renders objects and basic lighting.
 #[derive(Clone)]
 pub struct Basic {
     light_pos: Vector3<f32>,

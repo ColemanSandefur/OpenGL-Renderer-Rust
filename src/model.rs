@@ -158,7 +158,7 @@ impl<T: Material> Model<T> {
     /// Passes the model to the [`RenderScene`]. The [`RenderScene`]
     /// holds this struct by reference, so this struct must outlive the [`RenderScene`].
     ///
-    /// [`RenderScene`]: opengl_render::renderer::RenderScene
+    /// [`RenderScene`]: crate::renderer::RenderScene
     pub fn render<'a>(&'a self, scene: &mut RenderScene<'a>) {
         //scene.publish(&self.vertex_buffer, &self.index_buffer, &self.material);
         for item in &self.segments {

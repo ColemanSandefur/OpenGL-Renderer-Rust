@@ -10,6 +10,9 @@ use crate::renderer::{Renderable, SceneData};
 
 use super::Material;
 
+/// Phong lighting shader
+///
+/// This material is responsible for rendering objects and uses phong lighting for the scene.
 #[derive(Clone)]
 pub struct Phong {
     light: Vector3<f32>,

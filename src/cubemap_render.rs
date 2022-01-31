@@ -101,6 +101,7 @@ impl CubemapRender {
             let view: [[f32; 4]; 4] = camera_directions[index].into();
 
             frame_buffer.clear_color(1.0, 0.0, 0.0, 0.0);
+            frame_buffer.clear_depth(1.0);
 
             frame_buffer
                 .draw(

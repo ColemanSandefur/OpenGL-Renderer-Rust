@@ -5,18 +5,17 @@ use std::any::Any;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+
 pub mod basic;
 pub mod equirectangle;
 pub mod pbr;
 pub mod phong;
-pub mod simple;
 pub mod skybox;
 
 pub use basic::*;
 pub use equirectangle::*;
 pub use pbr::*;
 pub use phong::*;
-pub use simple::*;
 pub use skybox::*;
 
 use crate::renderer::SceneData;
