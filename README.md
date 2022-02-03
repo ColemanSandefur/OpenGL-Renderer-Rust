@@ -10,9 +10,10 @@ I'd recommend checking it out if you are interested in OpenGL!
 # Table of contents
 
 1. [Current Features](#current-features)
-1. [Examples](#examples)
-1. [Screenshots](#screenshots)
-1. [Architecture](#current-architecture)
+1. [Dependencies](#dependencies)
+3. [Examples](#examples)
+4. [Screenshots](#screenshots)
+5. [Architecture](#current-architecture)
 
 # Current Features
 Below is what I have done so far:
@@ -21,6 +22,11 @@ Below is what I have done so far:
     * PBR Reflections
 * Skybox
 * Phong rendering
+
+# Dependencies
+
+You must have these installed to build:
+* assimp
 
 # Examples
 There are examples available in the examples folder. To run an example use `cargo run --release --example example-name` 
