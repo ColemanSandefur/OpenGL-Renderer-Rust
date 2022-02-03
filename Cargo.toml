@@ -34,3 +34,4 @@ egui_glium = "0.16.0"
 
 ahash = "0.7"
 bytemuck = "1.7"
+rfd = "0.7.0"

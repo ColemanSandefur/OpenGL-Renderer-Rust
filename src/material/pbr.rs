@@ -10,8 +10,9 @@ use std::any::Any;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::DebugGUI;
+use crate::gui::DebugGUI;
 use crate::cubemap_loader::CubemapType;
+use crate::gui::DebugGUIFormat;
 use crate::renderer::{Renderable, SceneData};
 use crate::texture::TextureLoader;
 
@@ -128,13 +129,10 @@ impl PBRTextures {
 
 impl DebugGUI for PBRTextures {
     fn debug(&mut self, ui: &mut egui::Ui) {
-        let add_pixel = |data: &mut (u8, u8, u8, u8), ui: &mut egui::Ui| -> bool {
-            ui.add(egui::Slider::new(&mut data.0, 0..=255).prefix("r: ")).changed() || 
-            ui.add(egui::Slider::new(&mut data.1, 0..=255).prefix("g: ")).changed() ||
-            ui.add(egui::Slider::new(&mut data.2, 0..=255).prefix("b: ")).changed()
-        };
-
+        // Create a slider for the value, and create a new texture if the value was changed
         let print_texture = |texture: &Texture2d, name: &str, ui: &mut egui::Ui, facade: &Rc<Context>| -> Option<Texture2d>{
+            // Only display if texture is a 1x1 texture, else the texture shouldn't be able to be
+            // modified by sliders
             if texture.get_width() == 1 && texture.get_height().unwrap_or(1) == 1 {
                 let rgb: Vec<Vec<(u8, u8, u8, u8)>> = texture.read();
                 let mut pixel = rgb[0][0];
@@ -147,15 +145,19 @@ impl DebugGUI for PBRTextures {
             None
         };
 
+        // Only display if texture is a 1x1 texture, else the texture shouldn't be able to be
+        // modified by sliders
         if self.albedo.get_width() == 1 && self.albedo.get_height().unwrap_or(1) == 1 {
             let rgb: Vec<Vec<(u8, u8, u8, u8)>> = self.albedo.read();
-            let mut pixel = rgb[0][0];
+            let pixel = rgb[0][0];
+            let mut pixel = [pixel.0, pixel.1, pixel.2];
             ui.label("Albedo");
-            if add_pixel(&mut pixel, ui) {
-                if let Ok(texture) = TextureLoader::from_memory_rgb8(&self.facade, &[pixel.0, pixel.1, pixel.2], 1, 1) {
+
+            if DebugGUIFormat::rgb_byte(ui, &mut pixel).changed() {
+                if let Ok(texture) = TextureLoader::from_memory_rgb8(&self.facade, &pixel, 1, 1) {
                     self.set_albedo_map(texture);
                 }
-            };
+            }
         }
         
         if let Some(texture) = print_texture(&self.metallic, "Metallic", ui, &self.facade) {

@@ -2,7 +2,7 @@ use glium::backend::Facade;
 use std::path::PathBuf;
 use opengl_render::ibl::Ibl;
 use cgmath::Rad;
-use opengl_render::DebugGUI;
+use opengl_render::gui::DebugGUI;
 use opengl_render::camera::Camera;
 use opengl_render::cubemap_loader::CubemapLoader;
 use opengl_render::ibl::{IrradianceConverter, Prefilter, BRDF};
@@ -150,14 +150,43 @@ fn main() {
                 model.relative_rotate([Rad(0.0),Rad( 0.001 * delta_ms), Rad(0.0)]);
             }
 
+            // Add menu bar to the screen
+            egui::TopBottomPanel::top("title_bar").show(egui_ctx, |ui| {
+                // Open model
+                if ui.button("open").clicked() {
+                    if let Some(files) = rfd::FileDialog::new().pick_files() {
+                        for path in files {
+                            if let Ok(mut model) = PbrModel::load_from_fs(path, &facade, pbr.clone()) {
+                                // Move the model off of the camera so you can actually see it
+                                model.relative_move([0.0, 0.0, 4.0]);
+                                models.push(model);
+                            }
+                        }
+                    }
+                }
+            });
+
             // List all models in the side panel
             egui::SidePanel::new(egui::panel::Side::Left, "Models").show(egui_ctx, |ui| {
+                // Holds indices for models to be removed
+                let mut removed = Vec::new();
+
                 for i in 0..models.len() {
                     let model = &mut models[i];
 
                     egui::CollapsingHeader::new(format!("Object {}", i)).show(ui, |ui| {
                         model.debug(ui);
+                        
+                        // mark item for removal
+                        if ui.button("delete").clicked() {
+                            removed.push(i);
+                        }
                     });
+                }
+
+                // Remove items from vec (from back to front to not mess up indexing)
+                for i in removed.len() - 1..=0 {
+                    models.remove(removed[i]);
                 }
             });
         },

@@ -1,4 +1,5 @@
-use crate::DebugGUI;
+use crate::gui::DebugGUI;
+use crate::gui::DebugGUIFormat;
 use crate::material::pbr::PBRParams;
 use crate::material::PBRTextures;
 use crate::material::PBR;
@@ -358,6 +359,27 @@ impl PbrModel {
 
 impl DebugGUI for PbrModel {
     fn debug(&mut self, ui: &mut egui::Ui) {
+        // Add location
+        ui.label("position");
+        let mut position: [f32; 3] = self.position.into();
+        if DebugGUIFormat::position(ui, &mut position, -25.0..=25.0) {
+            self.position = position.into();
+        }
+
+        // Add rotation
+        ui.label("rotation");
+        let mut rotation: [f32; 3] = [
+            self.rotation[0].0,
+            self.rotation[1].0,
+            self.rotation[2].0,
+        ];
+        if DebugGUIFormat::rotation(ui, &mut rotation) {
+            self.rotation.x = Rad(rotation[0]);
+            self.rotation.y = Rad(rotation[1]);
+            self.rotation.z = Rad(rotation[2]);
+        }
+
+        // Add segments
         for i in 0..self.segments.len() {
             let segment = &mut self.segments[i];
 
