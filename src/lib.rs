@@ -179,3 +179,12 @@ pub mod skybox;
 pub mod support;
 pub mod texture;
 pub mod vertex;
+
+/// Print object debug info to gui.
+///
+/// Using egui, you can add debug information to the passed in ui. This can allow you to easily
+/// edit values during run-time (like object color). In general, the implementation should just
+/// care about printing its own members, not creating a whole new section for itself.
+pub trait DebugGUI {
+    fn debug(&mut self, ui: &mut egui::Ui);
+}

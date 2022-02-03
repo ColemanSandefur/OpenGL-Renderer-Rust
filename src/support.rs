@@ -52,7 +52,8 @@ impl System {
     pub fn main_loop(
         self,
         mut event_loop_fn: impl FnMut(&Event<'_, ()>, &mut ControlFlow) + 'static,
-        mut draw_fn: impl FnMut(&mut Frame, Duration) + 'static,
+        mut draw_fn: impl FnMut(&mut Frame, Duration, &egui::CtxRef) + 'static,
+        mut gui_fn: impl FnMut(&egui::CtxRef) + 'static,
     ) {
         let System {
             event_loop,
@@ -61,6 +62,7 @@ impl System {
         } = self;
 
         let mut last_frame = Instant::now();
+        let mut egui_glium = egui_glium::EguiGlium::new(&display);
 
         event_loop.run(move |event, _, control_flow| {
             event_loop_fn(&event, control_flow);
@@ -75,7 +77,15 @@ impl System {
 
                     let delta = now - last_frame;
 
-                    draw_fn(&mut target, delta);
+                    // Render behind egui
+
+                    // Render egui
+                    let (_repaint, shapes) = egui_glium.run(&display, |egui_ctx| {
+                        draw_fn(&mut target, delta, egui_ctx);
+                        gui_fn(egui_ctx);
+                    });
+
+                    egui_glium.paint(&display, &mut target, shapes);
 
                     target.finish().expect("Failed to swap buffers");
 
@@ -86,6 +96,16 @@ impl System {
                     event: glutin::event::WindowEvent::CloseRequested,
                     ..
                 } => *control_flow = glutin::event_loop::ControlFlow::Exit,
+
+                Event::WindowEvent {event, ..} => {
+                    use glutin::event::WindowEvent;
+
+                    if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
+                        *control_flow = glutin::event_loop::ControlFlow::Exit;
+                    }
+
+                    egui_glium.on_event(&event);
+                }
 
                 _event => {}
             }

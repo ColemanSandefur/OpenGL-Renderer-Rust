@@ -12,12 +12,25 @@ path = "examples/example.rs"
 name = "sphere_grid"
 path = "examples/sphere_grid.rs"
 
+[[example]]
+name = "gui_example"
+path = "examples/gui_example.rs"
+
 [dependencies]
 #glutin = "0.28.0"
-glium = { version = "*", default-features = true }
+glium = { version = "0.31", default-features = true }
 cgmath = "0.18"
 parking_lot = "0.11"
-tobj = "3.2.0"
 russimp = "1.0.1"
 image = "0.23.14"
 gl = "0.14.0"
+egui = { version = "0.16.0", default-features = false, features = [
+  "convert_bytemuck",
+  "single_threaded",
+] }
+egui-winit = { version = "0.16.0", default-features = false, features = ["epi"] }
+epi = { version = "0.16.0", optional = true }
+egui_glium = "0.16.0"
+
+ahash = "0.7"
+bytemuck = "1.7"

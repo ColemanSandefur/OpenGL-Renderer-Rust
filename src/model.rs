@@ -1,4 +1,5 @@
 use crate::renderer::RenderScene;
+use std::error::Error;
 use russimp::scene::PostProcess;
 use russimp::scene::Scene;
 use cgmath::Matrix4;
@@ -86,9 +87,9 @@ impl<T: Material> Model<T> {
     /// Can be used for multiple types of models, I have only tested Wavefront (.obj) or glTF 2.0
     /// (.glb). This won't set/load any materials from the file (due to the generics), but the vertices and normals
     /// should be right.
-    pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: T) -> Self {
+    pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: T) -> Result<Self, Box<dyn Error>> {
         let scene = Scene::from_file(
-            path.as_os_str().to_str().unwrap(),
+            path.as_os_str().to_str().ok_or("file path couldn't be made into a string")?,
             vec![
                 PostProcess::CalculateTangentSpace,
                 PostProcess::Triangulate,
@@ -100,8 +101,7 @@ impl<T: Material> Model<T> {
                 // Quick fix, should change later
                 PostProcess::PreTransformVertices,
             ],
-        )
-        .unwrap();
+        )?;
 
         let mut segments = Vec::new();
 
@@ -137,20 +137,19 @@ impl<T: Material> Model<T> {
             }
 
             let index_buffer =
-                IndexBuffer::new(facade, glium::index::PrimitiveType::TrianglesList, &indices)
-                    .unwrap();
-            let vertex_buffer = VertexBuffer::new(facade, &vertices).unwrap();
+                IndexBuffer::new(facade, glium::index::PrimitiveType::TrianglesList, &indices)?;
+            let vertex_buffer = VertexBuffer::new(facade, &vertices)?;
 
             let material = material.clone_sized();
 
             segments.push(ModelSegment::new(vertex_buffer, index_buffer, material));
         }
 
-        Self {
+        Ok(Self {
             position: [0.0; 3].into(),
             rotation: [Rad(0.0); 3].into(),
             segments,
-        }
+        })
     }
 
     /// Submits the PbrModel to the [`RenderScene`] to be rendered

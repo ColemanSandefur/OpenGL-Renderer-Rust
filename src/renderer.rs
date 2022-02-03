@@ -1,4 +1,5 @@
 use cgmath::Rad;
+use cgmath::Vector3;
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::uniforms::Uniforms;
 use glium::vertex::MultiVerticesSource;
@@ -125,9 +126,28 @@ impl<'a> RenderScene<'a> {
 
         let type_id = material.as_any().type_id();
 
-        if !self.entries.contains_key(&type_id) {
-            self.entries.insert(type_id, Vec::new());
-        }
+        self.entries.entry(type_id).or_insert(Vec::new());
+
+        self.entries.get_mut(&type_id).unwrap().push(entry);
+    }
+
+    /// Will check if the object published is in the camera's fov
+    /// 
+    /// Currently identical to publish as I haven't implemented frustum culling yet
+    pub fn publish_bounding<V, I>(&mut self, vertex_buffer: V, index_buffer: I, _bounds: (Vector3<f32>, Vector3<f32>), material: &'a dyn Material)
+    where
+        V: Into<VerticesSource<'a>>,
+        I: Into<IndicesSource<'a>>,
+    {
+        let entry = RenderEntry {
+            vertex_buffer: vertex_buffer.into(),
+            index_buffer: index_buffer.into(),
+            material,
+        };
+
+        let type_id = material.as_any().type_id();
+
+        self.entries.entry(type_id).or_insert(Vec::new());
 
         self.entries.get_mut(&type_id).unwrap().push(entry);
     }
@@ -176,14 +196,14 @@ impl<'a> RenderScene<'a> {
             * Matrix4::from_angle_z(self.scene_data.camera_rot[2]))
         .into();
 
-        for values in self.entries.into_values() {
-            for entry in values {
+        if let Some(skybox) = skybox {
+            for entry in skybox {
                 entry.render(surface, &self.scene_data, world);
             }
         }
 
-        if let Some(skybox) = skybox {
-            for entry in skybox {
+        for values in self.entries.into_values() {
+            for entry in values {
                 entry.render(surface, &self.scene_data, world);
             }
         }

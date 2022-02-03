@@ -134,6 +134,5 @@ void main() {
     
     vec3 color = ambient + Lo;
 
-    f_color = vec4(color , 1.0);
-    //f_color = vec4(ambient, 1.0);
+    f_color = vec4(color, 1.0);
 }

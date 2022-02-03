@@ -2,6 +2,7 @@ use glium::backend::Facade;
 use std::path::PathBuf;
 use opengl_render::ibl::Ibl;
 use cgmath::Rad;
+use opengl_render::DebugGUI;
 use opengl_render::camera::Camera;
 use opengl_render::cubemap_loader::CubemapLoader;
 use opengl_render::ibl::{IrradianceConverter, Prefilter, BRDF};
@@ -23,6 +24,7 @@ fn main() {
 
     // Create the window and opengl instance
     let display = System::init("renderer");
+
     let facade = display.display.get_context().clone();
 
     // Light positions should be moved from being stored in the material to stored in the scene
@@ -95,10 +97,16 @@ fn main() {
             model_dir.clone(),
             &facade,
             pbr.clone(),
+        ).unwrap(),
+        PbrModel::load_from_fs(
+            model_dir,
+            &facade,
+            pbr.clone(),
         ).unwrap()
     ];
 
-    models[0].relative_move([0.0, 0.0, 4.0]);
+    models[0].relative_move([-1.5, 0.0, 4.0]);
+    models[1].relative_move([1.5, 0.0, 4.0]);
 
     let camera_pos = [0.0, 0.0, 0.0];
 
@@ -106,7 +114,7 @@ fn main() {
         // Event loop
         move |_, _| {},
         // Render loop
-        move |frame, delta_time, _egui_ctx| {
+        move |frame, delta_time, egui_ctx| {
             // Time between frames should be used when moving or rotating objects
             let delta_ms = delta_time.as_micros() as f32 / 1000.0;
 
@@ -141,8 +149,20 @@ fn main() {
             for model in &mut models {
                 model.relative_rotate([Rad(0.0),Rad( 0.001 * delta_ms), Rad(0.0)]);
             }
+
+            // List all models in the side panel
+            egui::SidePanel::new(egui::panel::Side::Left, "Models").show(egui_ctx, |ui| {
+                for i in 0..models.len() {
+                    let model = &mut models[i];
+
+                    egui::CollapsingHeader::new(format!("Object {}", i)).show(ui, |ui| {
+                        model.debug(ui);
+                    });
+                }
+            });
         },
         // Gui loop
-        |_egui_ctx| {}
+        move |_egui_ctx| {
+        }
     );
 }

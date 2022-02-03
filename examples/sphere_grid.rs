@@ -110,7 +110,7 @@ fn main() {
 
     display.main_loop(
         move |_, _| {},
-        move |frame, delta_time| {
+        move |frame, delta_time, _egui| {
             // Time between frames should be used when moving or rotating objects
             let delta_ms = delta_time.as_micros() as f32 / 1000.0;
             println!("frame-time: {:>7.3}, fps: {:.0}", delta_ms, 1000.0 / delta_ms);
@@ -150,6 +150,7 @@ fn main() {
                 model.relative_rotate([Rad(0.0), Rad(-rotation * delta_ms), Rad(0.0)]);
             }
         },
+        |_egui| {},
     );
 }
 
@@ -175,7 +176,7 @@ fn generate_cubes(
         model,
         &*facade,
         pbr.clone(),
-    );
+    ).unwrap();
 
 
     for row in 0..height {

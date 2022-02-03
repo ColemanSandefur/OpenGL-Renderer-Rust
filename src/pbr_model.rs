@@ -1,3 +1,4 @@
+use crate::DebugGUI;
 use crate::material::pbr::PBRParams;
 use crate::material::PBRTextures;
 use crate::material::PBR;
@@ -12,6 +13,7 @@ use russimp::material::PropertyTypeInfo::FloatArray;
 use russimp::scene::PostProcess;
 use russimp::scene::Scene;
 use std::path::PathBuf;
+use std::error::Error;
 
 use crate::vertex::Vertex;
 
@@ -23,6 +25,7 @@ pub struct PbrModelSegment {
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: IndexBuffer<u32>,
 }
+
 impl PbrModelSegment {
     pub fn new(
         vertex_buffer: VertexBuffer<Vertex>,
@@ -76,6 +79,12 @@ impl Clone for PbrModelSegment {
     }
 }
 
+impl DebugGUI for PbrModelSegment {
+    fn debug(&mut self, ui: &mut egui::Ui) {
+        self.material.debug(ui);
+    }
+}
+
 /// A model that will be rendered using Physically Based Rendering
 ///
 /// When the `PbrModel` is constructed, it will consist of multiple segments. Each segment has its
@@ -112,9 +121,9 @@ impl PbrModel {
     /// This should primarily be used for loading glTF 2.0 (.glb) files as they support PBR
     /// materials. It does load wavefront (.obj) files, but the material will not look right due to
     /// wavefront not supporting pbr materials.
-    pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: PBR) -> Self {
+    pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: PBR) -> Result<Self, Box<dyn Error>> {
         let scene = Scene::from_file(
-            path.as_os_str().to_str().unwrap(),
+            path.as_os_str().to_str().ok_or("file path could not be made into a string")?,
             vec![
                 PostProcess::CalculateTangentSpace,
                 PostProcess::Triangulate,
@@ -126,8 +135,7 @@ impl PbrModel {
                 // Quick fix, should change later
                 PostProcess::PreTransformVertices,
             ],
-        )
-        .unwrap();
+        )?;
 
         let mut segments = Vec::new();
 
@@ -163,9 +171,8 @@ impl PbrModel {
             }
 
             let index_buffer =
-                IndexBuffer::new(facade, glium::index::PrimitiveType::TrianglesList, &indices)
-                    .unwrap();
-            let vertex_buffer = VertexBuffer::new(facade, &vertices).unwrap();
+                IndexBuffer::new(facade, glium::index::PrimitiveType::TrianglesList, &indices)?;
+            let vertex_buffer = VertexBuffer::new(facade, &vertices)?;
 
             let mut material = material.clone();
             let mut basic_mat = PBRParams::default();
@@ -203,14 +210,24 @@ impl PbrModel {
             }
             material.set_pbr_params(PBRTextures::from_params(basic_mat, facade));
 
+            // let bounds = {
+            //     let min = mesh.aabb.min;
+            //     let max = mesh.aabb.max;
+
+            //     (
+            //         [min.x, min.y, min.z].into(),
+            //         [max.x, max.y, max.z].into(),
+            //     )
+            // };
+
             segments.push(PbrModelSegment::new(vertex_buffer, index_buffer, material));
         }
 
-        Self {
+        Ok(Self {
             position: [0.0; 3].into(),
             rotation: [Rad(0.0); 3].into(),
             segments,
-        }
+        })
     }
 
     /// Makes a model out of vertex and index buffers
@@ -336,5 +353,17 @@ impl PbrModel {
     /// Retrieve the rotation of the model
     pub fn get_rotation(&self) -> &Vector3<Rad<f32>> {
         &self.rotation
+    }
+}
+
+impl DebugGUI for PbrModel {
+    fn debug(&mut self, ui: &mut egui::Ui) {
+        for i in 0..self.segments.len() {
+            let segment = &mut self.segments[i];
+
+            egui::CollapsingHeader::new(format!("Segment {}", i)).show(ui, |ui| {
+                segment.debug(ui);
+            });
+        }
     }
 }

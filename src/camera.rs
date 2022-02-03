@@ -12,6 +12,11 @@ pub struct Camera {
 }
 
 impl Camera {
+    /// Farthest point
+    pub const ZFAR: f32 = 1024.0;
+    /// Nearest point
+    pub const ZNEAR: f32 = 0.10;
+
     pub fn new(fovy: Rad<f32>, width: u32, height: u32) -> Self {
         Self {
             fovy,
@@ -30,6 +35,15 @@ impl Camera {
         self.height = height;
     }
 
+    /// Aspect ratio of the screen (width/height)
+    pub fn get_aspect(&self) -> f32 {
+        self.width as f32 / self.height as f32
+    }
+
+    pub fn get_fovy(&self) -> &Rad<f32> {
+        &self.fovy
+    }
+
     /// The camera matrix to be used in materials.
     ///
     /// Generates the matrix on every call
@@ -38,8 +52,8 @@ impl Camera {
 
         let f = 1.0 / (self.fovy.0 / 2.0f32).tan();
 
-        let zfar = 1024.0;
-        let znear = 0.10;
+        let zfar = Self::ZFAR;
+        let znear = Self::ZNEAR;
 
         [
             [f / aspect_ratio, 0.0, 0.0, 0.0],

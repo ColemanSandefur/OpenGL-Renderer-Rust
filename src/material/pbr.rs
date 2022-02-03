@@ -1,13 +1,16 @@
 use cgmath::{Vector3, Matrix4};
+use glium::Blend;
 use glium::backend::Facade;
+use glium::backend::Context;
 use glium::index::IndicesSource;
 use glium::texture::Texture2d;
 use glium::vertex::VerticesSource;
-use glium::{backend::Context, BackfaceCullingMode, DrawParameters, Program};
+use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use crate::DebugGUI;
 use crate::cubemap_loader::CubemapType;
 use crate::renderer::{Renderable, SceneData};
 use crate::texture::TextureLoader;
@@ -90,6 +93,7 @@ pub struct PBRTextures {
     pub metallic: Arc<Texture2d>,
     pub roughness: Arc<Texture2d>,
     pub ao: Arc<Texture2d>,
+    pub facade: Rc<Context>,
 }
 
 impl PBRTextures {
@@ -101,6 +105,7 @@ impl PBRTextures {
             metallic: Arc::new(create_texture(facade, &[params.metallic; 3], 1, 1).unwrap()),
             roughness: Arc::new(create_texture(facade, &[params.roughness; 3], 1, 1).unwrap()),
             ao: Arc::new(create_texture(facade, &[params.ao; 3], 1, 1).unwrap()),
+            facade: facade.get_context().clone(),
         }
     }
 
@@ -118,6 +123,50 @@ impl PBRTextures {
 
     pub fn set_ao_map(&mut self, map: Texture2d) {
         self.ao = Arc::new(map);
+    }
+}
+
+impl DebugGUI for PBRTextures {
+    fn debug(&mut self, ui: &mut egui::Ui) {
+        let add_pixel = |data: &mut (u8, u8, u8, u8), ui: &mut egui::Ui| -> bool {
+            ui.add(egui::Slider::new(&mut data.0, 0..=255).prefix("r: ")).changed() || 
+            ui.add(egui::Slider::new(&mut data.1, 0..=255).prefix("g: ")).changed() ||
+            ui.add(egui::Slider::new(&mut data.2, 0..=255).prefix("b: ")).changed()
+        };
+
+        let print_texture = |texture: &Texture2d, name: &str, ui: &mut egui::Ui, facade: &Rc<Context>| -> Option<Texture2d>{
+            if texture.get_width() == 1 && texture.get_height().unwrap_or(1) == 1 {
+                let rgb: Vec<Vec<(u8, u8, u8, u8)>> = texture.read();
+                let mut pixel = rgb[0][0];
+                ui.label(name);
+                if ui.add(egui::Slider::new(&mut pixel.0, 0..=255)).changed() {
+                    return TextureLoader::from_memory_rgb8(facade, &[pixel.0; 3], 1, 1).ok();
+                }
+            }
+            
+            None
+        };
+
+        if self.albedo.get_width() == 1 && self.albedo.get_height().unwrap_or(1) == 1 {
+            let rgb: Vec<Vec<(u8, u8, u8, u8)>> = self.albedo.read();
+            let mut pixel = rgb[0][0];
+            ui.label("Albedo");
+            if add_pixel(&mut pixel, ui) {
+                if let Ok(texture) = TextureLoader::from_memory_rgb8(&self.facade, &[pixel.0, pixel.1, pixel.2], 1, 1) {
+                    self.set_albedo_map(texture);
+                }
+            };
+        }
+        
+        if let Some(texture) = print_texture(&self.metallic, "Metallic", ui, &self.facade) {
+            self.set_metallic_map(texture);
+        }
+        if let Some(texture) = print_texture(&self.roughness, "Roughness", ui, &self.facade) {
+            self.set_roughness_map(texture);
+        }
+        if let Some(texture) = print_texture(&self.ao, "Ao", ui, &self.facade) {
+            self.set_ao_map(texture);
+        }
     }
 }
 
@@ -238,6 +287,17 @@ impl Material for PBR {
                                 write: true,
                                 ..Default::default()
                             },
+                            blend: Blend {
+                                color: glium::BlendingFunction::Addition {
+                                    source: glium::LinearBlendingFactor::SourceAlpha,
+                                    destination: glium::LinearBlendingFactor::OneMinusSourceAlpha,
+                                },
+                                alpha: glium::BlendingFunction::Addition {
+                                    source: glium::LinearBlendingFactor::One,
+                                    destination: glium::LinearBlendingFactor::Zero,
+                                },
+                                ..Default::default()
+                            },
                             ..Default::default()
                         },
                     )
@@ -279,5 +339,11 @@ impl Material for PBR {
         Self: Sized,
     {
         self.clone()
+    }
+}
+
+impl DebugGUI for PBR {
+    fn debug(&mut self, ui: &mut egui::Ui) {
+        self.pbr_params.debug(ui);
     }
 }
