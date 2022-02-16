@@ -12,8 +12,7 @@ pub struct IrradianceConverter {
 
 impl IrradianceConverter {
     pub fn load(facade: &impl Facade) -> Self {
-        let program =
-            crate::material::load_program(facade, "shaders/irradiance_convolution".into());
+        let program = crate::material::insert_program!("../shaders/irradiance_convolution/vertex.glsl", "../shaders/irradiance_convolution/fragment.glsl", facade);
 
         Self {
             program: Arc::new(program),

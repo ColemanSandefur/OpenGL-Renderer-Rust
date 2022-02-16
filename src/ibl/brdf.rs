@@ -13,7 +13,8 @@ pub struct BRDF {
 
 impl BRDF {
     pub fn new(facade: &impl Facade) -> Self {
-        let program = crate::material::load_program(facade, "./shaders/brdf/".into());
+        let program = crate::material::insert_program!("../shaders/brdf/vertex.glsl", "../shaders/brdf/fragment.glsl", facade);
+        
         let vertex_buffer = VertexBuffer::new(facade, &get_quad_vertices()).unwrap();
         let index_buffer = IndexBuffer::new(facade, glium::index::PrimitiveType::TrianglesList, &[0, 1, 2, 1, 3, 2]).unwrap();
 

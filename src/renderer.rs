@@ -3,6 +3,7 @@ use cgmath::Vector3;
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::uniforms::Uniforms;
 use glium::vertex::MultiVerticesSource;
+use std::any::Any;
 use std::any::TypeId;
 use std::collections::HashMap;
 
@@ -20,15 +21,20 @@ use glium::{DrawError, DrawParameters, Frame, Program, Surface};
 // I don't know if this will be needed, but it is here for future use if needed
 pub struct Renderer {
     _display: Display,
+    polygons: u32,
 }
 
 impl Renderer {
     pub fn new(display: Display) -> Self {
-        Self { _display: display }
+        Self { _display: display, polygons: 0 }
     }
 
-    pub fn begin_scene(&self) -> RenderScene {
-        RenderScene::new()
+    pub fn begin_scene(&mut self) -> RenderScene {
+        RenderScene::new(self)
+    }
+
+    pub fn get_polygons(&self) -> u32 {
+        self.polygons
     }
 }
 
@@ -71,6 +77,7 @@ pub struct SceneData<'a> {
     camera_pos: [f32; 3],
     camera_rot: [Rad<f32>; 3],
     skybox: Option<&'a Skybox>,
+    scene_variables: HashMap<TypeId, Box<dyn Any>>,
 }
 
 impl<'a> SceneData<'a> {
@@ -86,6 +93,34 @@ impl<'a> SceneData<'a> {
     pub fn get_skybox(&self) -> &Option<&'a Skybox> {
         &self.skybox
     }
+
+    /// Gets scene variable
+    pub fn get_scene_variable_raw<T: 'static + ?Sized>(&self) -> Option<&Box<dyn Any>> {
+        self.scene_variables.get(&TypeId::of::<T>())
+    }
+
+    /// Gets mut scene variable
+    pub fn get_scene_variable_mut_raw<T: 'static + ?Sized>(&mut self) -> Option<&mut Box<dyn Any>> {
+        self.scene_variables.get_mut(&TypeId::of::<T>())
+    }
+
+    /// Gets scene variable and auto downcasts it.
+    pub fn get_scene_variable<T: 'static + Sized>(&self) -> Option<&T> {
+        let data = self.get_scene_variable_raw::<T>()?;
+
+        data.downcast_ref()
+    }
+
+    pub fn add_scene_variable<T: Any>(&mut self, data: T) {
+        self.scene_variables.insert(TypeId::of::<T>(), Box::new(data));
+    }
+
+    /// Gets mutable scene variable and auto downcasts it.
+    pub fn get_scene_variable_mut<T: 'static + Sized>(&mut self) -> Option<&mut T> {
+        let data = self.get_scene_variable_mut_raw::<T>()?;
+
+        data.downcast_mut()
+    }
 }
 
 impl<'a> Default for SceneData<'a> {
@@ -95,6 +130,7 @@ impl<'a> Default for SceneData<'a> {
             camera_pos: [0.0; 3],
             camera_rot: [Rad(0.0); 3],
             skybox: None,
+            scene_variables: HashMap::new(),
         }
     }
 }
@@ -109,8 +145,10 @@ impl<'a> Default for SceneData<'a> {
 pub struct RenderScene<'a> {
     scene_data: SceneData<'a>,
     entries: HashMap<TypeId, Vec<RenderEntry<'a>>>,
+    renderer: &'a mut Renderer,
 }
 
+pub struct Test{}
 impl<'a> RenderScene<'a> {
     /// Add an item to be rendered
     pub fn publish<V, I>(&mut self, vertex_buffer: V, index_buffer: I, material: &'a dyn Material)
@@ -153,10 +191,11 @@ impl<'a> RenderScene<'a> {
     }
 
     /// Used by renderer only
-    fn new() -> Self {
+    fn new(renderer: &'a mut Renderer) -> Self {
         Self {
             scene_data: Default::default(),
             entries: HashMap::new(),
+            renderer,
         }
     }
 
@@ -183,6 +222,10 @@ impl<'a> RenderScene<'a> {
         &self.scene_data
     }
 
+    pub fn get_scene_data_mut(&mut self) -> &mut SceneData<'a> {
+        &mut self.scene_data
+    }
+
     /// Render all the items that have been submitted
     pub fn finish(mut self, surface: &mut Renderable) {
         let skybox = match &self.scene_data.skybox {
@@ -196,6 +239,8 @@ impl<'a> RenderScene<'a> {
             * Matrix4::from_angle_z(self.scene_data.camera_rot[2]))
         .into();
 
+        let mut faces = 0;
+
         if let Some(skybox) = skybox {
             for entry in skybox {
                 entry.render(surface, &self.scene_data, world);
@@ -204,9 +249,22 @@ impl<'a> RenderScene<'a> {
 
         for values in self.entries.into_values() {
             for entry in values {
+                // Crudely count indices
+                faces += match &entry.index_buffer {
+                    IndicesSource::IndexBuffer {buffer, ..} => {
+                        buffer.get_elements_count()
+                    },
+                    IndicesSource::MultidrawArray {buffer, ..} => {
+                        buffer.get_elements_count()
+                    },
+                    _ => {0}
+                };
                 entry.render(surface, &self.scene_data, world);
             }
         }
+
+        // Assume that each polygon is a triangle (vertices / 3)
+        self.renderer.polygons = faces as u32 / 3;
     }
 }
 

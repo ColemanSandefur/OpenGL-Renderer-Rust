@@ -13,7 +13,7 @@ pub struct Prefilter {
 impl Prefilter {
     const MAX_MIP_LEVELS: u32 = 5;
     pub fn load(facade: &impl Facade) -> Self {
-        let program = crate::material::load_program(facade, "./shaders/prefilter/".into());
+        let program = crate::material::insert_program!("../shaders/prefilter/vertex.glsl", "../shaders/prefilter/fragment.glsl", facade);
 
         Self {
             program: Arc::new(program),

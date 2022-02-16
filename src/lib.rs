@@ -167,6 +167,10 @@
 #[macro_use]
 pub extern crate glium;
 
+pub extern crate cgmath;
+pub extern crate egui;
+pub extern crate image;
+
 pub mod camera;
 pub mod cubemap_loader;
 pub mod cubemap_render;

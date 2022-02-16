@@ -30,7 +30,7 @@ fn main() {
     // Light positions should be moved from being stored in the material to stored in the scene
     let light_pos = [0.0, 0.4, -10.0];
 
-    let renderer = Renderer::new((*display.display).clone());
+    let mut renderer = Renderer::new((*display.display).clone());
 
     // Convert an equirectangular image into a cubemap and store it to the file system
     // This generated cubemap will be used as the skybox
@@ -110,13 +110,16 @@ fn main() {
 
     let camera_pos = [0.0, 0.0, 0.0];
 
+    // Will hold new models that will be added to models next frame
+    let mut new_models = Vec::new();
+
     display.main_loop(
         // Event loop
         move |_, _| {},
         // Render loop
         move |frame, delta_time, egui_ctx| {
             // Time between frames should be used when moving or rotating objects
-            let delta_ms = delta_time.as_micros() as f32 / 1000.0;
+            let _delta_ms = delta_time.as_micros() as f32 / 1000.0;
 
             // To render a frame, we must begin a new scene.
             // The scene will keep track of variables that apply to the whole scene, like the
@@ -132,6 +135,9 @@ fn main() {
             scene.set_camera_pos(camera_pos);
             scene.set_skybox(Some(&skybox));
 
+            // new_models is a buffer of new objects to be rendered
+            models.append(&mut new_models);
+
             // send items to be rendered
             // IMPORTANT: you must set the camera position before submitting an object to be
             // rendered. This is because when I add LOD support, it will use the scene's camera
@@ -145,10 +151,6 @@ fn main() {
             // to render to the frame we must first convert it to the Renderable enum, then you can
             // render the scene.
             scene.finish(&mut frame.into());
-
-            for model in &mut models {
-                model.relative_rotate([Rad(0.0),Rad( 0.001 * delta_ms), Rad(0.0)]);
-            }
 
             // Add menu bar to the screen
             egui::TopBottomPanel::top("title_bar").show(egui_ctx, |ui| {
@@ -168,26 +170,32 @@ fn main() {
 
             // List all models in the side panel
             egui::SidePanel::new(egui::panel::Side::Left, "Models").show(egui_ctx, |ui| {
-                // Holds indices for models to be removed
-                let mut removed = Vec::new();
+                egui::ScrollArea::new([false, true]).show(ui, |ui| {
+                    // Holds indices for models to be removed
+                    let mut removed = Vec::new();
 
-                for i in 0..models.len() {
-                    let model = &mut models[i];
+                    for i in 0..models.len() {
+                        let model = &mut models[i];
 
-                    egui::CollapsingHeader::new(format!("Object {}", i)).show(ui, |ui| {
-                        model.debug(ui);
-                        
-                        // mark item for removal
-                        if ui.button("delete").clicked() {
-                            removed.push(i);
-                        }
-                    });
-                }
+                        egui::CollapsingHeader::new(format!("Object {}", i)).show(ui, |ui| {
+                            model.debug(ui);
+                            
+                            // mark item for removal
+                            if ui.button("delete").clicked() {
+                                removed.push(i);
+                            }
 
-                // Remove items from vec (from back to front to not mess up indexing)
-                for i in removed.len() - 1..=0 {
-                    models.remove(removed[i]);
-                }
+                            if ui.button("clone").clicked() {
+                                new_models.push(model.clone());
+                            }
+                        });
+                    }
+
+                    // Remove items from vec (from back to front to not mess up indexing)
+                    for i in removed.len() - 1..=0 {
+                        models.remove(removed[i]);
+                    }
+                });
             });
         },
         // Gui loop

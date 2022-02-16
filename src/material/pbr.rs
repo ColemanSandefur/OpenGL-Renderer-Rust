@@ -192,7 +192,7 @@ pub struct PBR {
 
 impl PBR {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let program = crate::material::load_program(facade, "shaders/pbr/".into());
+        let program = crate::material::insert_program!("../shaders/pbr/vertex.glsl", "../shaders/pbr/fragment.glsl", facade);
         let pbr_params = PBRParams::default();
         let params = PBRTextures::from_params(pbr_params.clone(), facade);
 

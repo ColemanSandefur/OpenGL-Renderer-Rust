@@ -21,8 +21,7 @@ pub struct Phong {
 
 impl Phong {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let program =
-            crate::material::load_program(facade, "shaders/phong/".into());
+        let program = crate::material::insert_program!("../shaders/phong/vertex.glsl", "../shaders/phong/fragment.glsl", facade);
 
         Self {
             light: [0.0; 3].into(),

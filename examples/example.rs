@@ -28,7 +28,7 @@ fn main() {
     // Light positions should be moved from being stored in the material to stored in the scene
     let light_pos = [0.0, 0.4, -10.0];
 
-    let renderer = Renderer::new((*display.display).clone());
+    let mut renderer = Renderer::new((*display.display).clone());
 
     // Convert an equirectangular image into a cubemap and store it to the file system
     // This generated cubemap will be used as the skybox

@@ -32,7 +32,7 @@ impl SkyboxMat {
         directory: impl Into<PathBuf>,
         extension: &str,
     ) -> Self {
-        let program = crate::material::load_program(facade, "shaders/skybox/".into());
+        let program = crate::material::insert_program!("../shaders/skybox/vertex.glsl", "../shaders/skybox/fragment.glsl", facade);
 
         println!("Loading cubemap");
         //let cubemap = CubemapLoader::load_from_fs_hdr("hdr_cubemap/".into(), "hdr", facade);
@@ -65,7 +65,7 @@ impl SkyboxMat {
     //}
 
     pub fn load_from_cubemap(facade: &impl Facade, cubemap: CubemapType) -> Self {
-        let program = crate::material::load_program(facade, "shaders/skybox/".into());
+        let program = crate::material::insert_program!("../shaders/skybox/vertex.glsl", "../shaders/skybox/fragment.glsl", facade);
 
         Self {
             program: Arc::new(program),

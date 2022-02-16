@@ -22,8 +22,7 @@ pub struct Equirectangle {
 
 impl Equirectangle {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let program =
-            crate::material::load_program(facade, "shaders/equirectangle_to_cube/".into());
+        let program = crate::material::insert_program!("../shaders/equirectangle_to_cube/vertex.glsl", "../shaders/equirectangle_to_cube/fragment.glsl", facade);
 
         Self {
             program: Arc::new(program),

@@ -317,7 +317,6 @@ impl PbrModel {
     /// model.relative_rotate([Rad(0.0), Rad(0.0), Rad(std::f32::consts::PI/2.0)]);
     /// ```
     pub fn relative_rotate(&mut self, rotation: impl Into<Vector3<Rad<f32>>>) {
-        
         let rotation = rotation.into();
         self.rotation[0] += rotation[0];
         self.rotation[1] += rotation[1];
@@ -364,6 +363,7 @@ impl DebugGUI for PbrModel {
         let mut position: [f32; 3] = self.position.into();
         if DebugGUIFormat::position(ui, &mut position, -25.0..=25.0) {
             self.position = position.into();
+            self.build_matrix();
         }
 
         // Add rotation
@@ -377,6 +377,7 @@ impl DebugGUI for PbrModel {
             self.rotation.x = Rad(rotation[0]);
             self.rotation.y = Rad(rotation[1]);
             self.rotation.z = Rad(rotation[2]);
+            self.build_matrix();
         }
 
         // Add segments

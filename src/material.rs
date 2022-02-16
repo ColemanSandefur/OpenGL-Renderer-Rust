@@ -169,13 +169,28 @@ pub trait Material: 'static {
         Self: Sized;
 }
 
+/// A simple macro which will include fragment and vertex shaders in the binary
+/// 
+/// The preferred way to load shaders since portability is guaranteed.
+#[macro_export]
+macro_rules! insert_program {
+    ($vertex:expr, $fragment:expr, $facade:expr) => {
+        crate::material::compile_program($facade, &include_str!($vertex), &include_str!($fragment))
+    }
+}
+
+pub use insert_program;
+
 /// Load program from file system
 ///
-/// A simple helper function to load the vertex and fragment shaders and compile them as a program.
+/// A simple helper function to load the vertex and fragment shaders and compile them as a program. 
+/// The `insert_program` macro should be used for increased portability, but it will have to recompile the program when you change a shader.
 pub fn load_program(facade: &impl Facade, mut path: PathBuf) -> Program {
     if path.is_dir() {
         path.push("vertex.glsl");
     }
+
+
     let mut vertex_shader_file = File::open(path.with_file_name("vertex.glsl")).unwrap();
     let mut vertex_shader_src = String::new();
     vertex_shader_file
@@ -187,5 +202,9 @@ pub fn load_program(facade: &impl Facade, mut path: PathBuf) -> Program {
         .read_to_string(&mut fragment_shader_src)
         .unwrap();
 
-    Program::from_source(facade, &vertex_shader_src, &fragment_shader_src, None).expect(&format!("Error compiling shader {}", path.as_os_str().to_str().unwrap()))
+    compile_program(facade, &vertex_shader_src, &fragment_shader_src)
+}
+
+pub fn compile_program(facade: &impl Facade, vertex: &str, fragment: &str) -> Program {
+    Program::from_source(facade, &vertex, &fragment, None).expect(&format!("Error compiling shader"))
 }

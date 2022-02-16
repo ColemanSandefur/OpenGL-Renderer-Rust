@@ -62,8 +62,7 @@ pub struct Basic {
 
 impl Basic {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let program =
-            crate::material::load_program(facade, "shaders/basic/".into());
+        let program = crate::material::insert_program!("../shaders/basic/vertex.glsl", "../shaders/basic/fragment.glsl", facade);
 
         Self {
             light_pos: [0.0; 3].into(),
