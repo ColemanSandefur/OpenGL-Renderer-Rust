@@ -7,6 +7,7 @@ use std::any::Any;
 use std::any::TypeId;
 use std::collections::HashMap;
 
+use crate::lights::RawLights;
 use crate::material::Material;
 use crate::skybox::Skybox;
 use cgmath::Matrix4;
@@ -26,7 +27,10 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(display: Display) -> Self {
-        Self { _display: display, polygons: 0 }
+        Self {
+            _display: display,
+            polygons: 0,
+        }
     }
 
     pub fn begin_scene(&mut self) -> RenderScene {
@@ -69,7 +73,7 @@ impl<'a> RenderEntry<'a> {
 }
 
 /// Scene specific data
-/// 
+///
 /// Contains information that should belong to the scene, such as the camera position, and skybox.
 /// It is also passed to the [`Material`](crate::material::Material) during rendering so that every shader can use the information
 pub struct SceneData<'a> {
@@ -77,6 +81,7 @@ pub struct SceneData<'a> {
     camera_pos: [f32; 3],
     camera_rot: [Rad<f32>; 3],
     skybox: Option<&'a Skybox>,
+    raw_lights: RawLights,
     scene_variables: HashMap<TypeId, Box<dyn Any>>,
 }
 
@@ -112,7 +117,8 @@ impl<'a> SceneData<'a> {
     }
 
     pub fn add_scene_variable<T: Any>(&mut self, data: T) {
-        self.scene_variables.insert(TypeId::of::<T>(), Box::new(data));
+        self.scene_variables
+            .insert(TypeId::of::<T>(), Box::new(data));
     }
 
     /// Gets mutable scene variable and auto downcasts it.
@@ -120,6 +126,14 @@ impl<'a> SceneData<'a> {
         let data = self.get_scene_variable_mut_raw::<T>()?;
 
         data.downcast_mut()
+    }
+
+    pub fn get_raw_lights(&self) -> &RawLights {
+        &self.raw_lights
+    }
+
+    pub fn get_raw_lights_mut(&mut self) -> &mut RawLights {
+        &mut self.raw_lights
     }
 }
 
@@ -130,6 +144,7 @@ impl<'a> Default for SceneData<'a> {
             camera_pos: [0.0; 3],
             camera_rot: [Rad(0.0); 3],
             skybox: None,
+            raw_lights: RawLights::new(),
             scene_variables: HashMap::new(),
         }
     }
@@ -148,7 +163,7 @@ pub struct RenderScene<'a> {
     renderer: &'a mut Renderer,
 }
 
-pub struct Test{}
+pub struct Test {}
 impl<'a> RenderScene<'a> {
     /// Add an item to be rendered
     pub fn publish<V, I>(&mut self, vertex_buffer: V, index_buffer: I, material: &'a dyn Material)
@@ -170,10 +185,15 @@ impl<'a> RenderScene<'a> {
     }
 
     /// Will check if the object published is in the camera's fov
-    /// 
+    ///
     /// Currently identical to publish as I haven't implemented frustum culling yet
-    pub fn publish_bounding<V, I>(&mut self, vertex_buffer: V, index_buffer: I, _bounds: (Vector3<f32>, Vector3<f32>), material: &'a dyn Material)
-    where
+    pub fn publish_bounding<V, I>(
+        &mut self,
+        vertex_buffer: V,
+        index_buffer: I,
+        _bounds: (Vector3<f32>, Vector3<f32>),
+        material: &'a dyn Material,
+    ) where
         V: Into<VerticesSource<'a>>,
         I: Into<IndicesSource<'a>>,
     {
@@ -251,13 +271,9 @@ impl<'a> RenderScene<'a> {
             for entry in values {
                 // Crudely count indices
                 faces += match &entry.index_buffer {
-                    IndicesSource::IndexBuffer {buffer, ..} => {
-                        buffer.get_elements_count()
-                    },
-                    IndicesSource::MultidrawArray {buffer, ..} => {
-                        buffer.get_elements_count()
-                    },
-                    _ => {0}
+                    IndicesSource::IndexBuffer { buffer, .. } => buffer.get_elements_count(),
+                    IndicesSource::MultidrawArray { buffer, .. } => buffer.get_elements_count(),
+                    _ => 0,
                 };
                 entry.render(surface, &self.scene_data, world);
             }

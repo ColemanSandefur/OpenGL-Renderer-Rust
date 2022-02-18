@@ -1,16 +1,16 @@
-use glium::backend::Facade;
-use std::path::PathBuf;
-use opengl_render::ibl::Ibl;
 use cgmath::Rad;
-use opengl_render::gui::DebugGUI;
+use glium::backend::Facade;
 use opengl_render::camera::Camera;
 use opengl_render::cubemap_loader::CubemapLoader;
+use opengl_render::gui::DebugGUI;
+use opengl_render::ibl::Ibl;
 use opengl_render::ibl::{IrradianceConverter, Prefilter, BRDF};
 use opengl_render::material::{Equirectangle, SkyboxMat, PBR};
 use opengl_render::pbr_model::PbrModel;
 use opengl_render::skybox::Skybox;
 use opengl_render::support::System;
 use opengl_render::{glium::Surface, renderer::Renderer};
+use std::path::PathBuf;
 
 fn main() {
     // Path of the equirectangular texture that will be converted to a cubemap
@@ -27,8 +27,8 @@ fn main() {
 
     let facade = display.display.get_context().clone();
 
-    // Light positions should be moved from being stored in the material to stored in the scene
     let light_pos = [0.0, 0.4, -10.0];
+    let light_color = [300.0, 300.0, 300.0];
 
     let mut renderer = Renderer::new((*display.display).clone());
 
@@ -45,7 +45,7 @@ fn main() {
 
     //
     // Here we will generate the irradiance map, prefilter map, and brdf texture
-    // 
+    //
     // The irradiance map maps the light output from the skybox to use as ambient light,
     // The prefilter map is used for reflections
     // The brdf is the same for all skyboxes, we just generate it to make sure that it exists
@@ -57,14 +57,17 @@ fn main() {
     let brdf_shader = BRDF::new(&facade);
 
     // Load the skybox again to generate the maps
-    let ibl_cubemap = CubemapLoader::load_from_fs(
-        ibl_dir.join("cubemap/"),
-        "png",
-        &facade,
-    );
+    let ibl_cubemap = CubemapLoader::load_from_fs(ibl_dir.join("cubemap/"), "png", &facade);
 
     // Generate the maps and store them to the file system
-    opengl_render::ibl::generate_ibl_from_cubemap(&facade, &ibl_cubemap, ibl_dir.clone(), irradiance_converter, prefilter_shader, brdf_shader);
+    opengl_render::ibl::generate_ibl_from_cubemap(
+        &facade,
+        &ibl_cubemap,
+        ibl_dir.clone(),
+        irradiance_converter,
+        prefilter_shader,
+        brdf_shader,
+    );
 
     // Load the skybox from the file system
     let skybox_mat = SkyboxMat::load_from_fs(&facade, ibl_dir.join("cubemap/"), "png");
@@ -84,8 +87,7 @@ fn main() {
     skybox.set_brdf(Some(brdf));
 
     // Load the Physically Based Rendering shader from the file system
-    let mut pbr = PBR::load_from_fs(&facade);
-    pbr.set_light_pos(light_pos);
+    let pbr = PBR::load_from_fs(&facade);
 
     //
     // Here we will load the model that will be rendered
@@ -93,16 +95,8 @@ fn main() {
 
     // This doesn't have to be a vec, but it makes loading multiple models more convenient
     let mut models = vec![
-        PbrModel::load_from_fs(
-            model_dir.clone(),
-            &facade,
-            pbr.clone(),
-        ).unwrap(),
-        PbrModel::load_from_fs(
-            model_dir,
-            &facade,
-            pbr.clone(),
-        ).unwrap()
+        PbrModel::load_from_fs(model_dir.clone(), &facade, pbr.clone()).unwrap(),
+        PbrModel::load_from_fs(model_dir, &facade, pbr.clone()).unwrap(),
     ];
 
     models[0].relative_move([-1.5, 0.0, 4.0]);
@@ -134,6 +128,10 @@ fn main() {
             scene.set_camera(camera.get_matrix().into());
             scene.set_camera_pos(camera_pos);
             scene.set_skybox(Some(&skybox));
+            scene
+                .get_scene_data_mut()
+                .get_raw_lights_mut()
+                .add_light(light_pos, light_color);
 
             // new_models is a buffer of new objects to be rendered
             models.append(&mut new_models);
@@ -158,7 +156,9 @@ fn main() {
                 if ui.button("open").clicked() {
                     if let Some(files) = rfd::FileDialog::new().pick_files() {
                         for path in files {
-                            if let Ok(mut model) = PbrModel::load_from_fs(path, &facade, pbr.clone()) {
+                            if let Ok(mut model) =
+                                PbrModel::load_from_fs(path, &facade, pbr.clone())
+                            {
                                 // Move the model off of the camera so you can actually see it
                                 model.relative_move([0.0, 0.0, 4.0]);
                                 models.push(model);
@@ -179,7 +179,7 @@ fn main() {
 
                         egui::CollapsingHeader::new(format!("Object {}", i)).show(ui, |ui| {
                             model.debug(ui);
-                            
+
                             // mark item for removal
                             if ui.button("delete").clicked() {
                                 removed.push(i);
@@ -199,7 +199,6 @@ fn main() {
             });
         },
         // Gui loop
-        move |_egui_ctx| {
-        }
+        move |_egui_ctx| {},
     );
 }

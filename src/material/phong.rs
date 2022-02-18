@@ -1,4 +1,3 @@
-use cgmath::Vector3;
 use glium::backend::Facade;
 use glium::index::IndicesSource;
 use glium::vertex::VerticesSource;
@@ -15,22 +14,20 @@ use super::Material;
 /// This material is responsible for rendering objects and uses phong lighting for the scene.
 #[derive(Clone)]
 pub struct Phong {
-    light: Vector3<f32>,
     program: Arc<Program>,
 }
 
 impl Phong {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let program = crate::material::insert_program!("../shaders/phong/vertex.glsl", "../shaders/phong/fragment.glsl", facade);
+        let program = crate::material::insert_program!(
+            "../shaders/phong/vertex.glsl",
+            "../shaders/phong/fragment.glsl",
+            facade
+        );
 
         Self {
-            light: [0.0; 3].into(),
             program: Arc::new(program),
         }
-    }
-
-    pub fn set_light_pos(&mut self, position: impl Into<Vector3<f32>>) {
-        self.light = position.into();
     }
 }
 
@@ -42,9 +39,9 @@ impl Material for Phong {
         surface: &mut Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
-        _scene_data: &SceneData,
+        scene_data: &SceneData,
     ) {
-        let light: [f32; 3] = self.light.clone().into();
+        let light: [f32; 3] = *scene_data.get_raw_lights().get_light(0).0;
         let uniforms = uniform! {
             u_light: light,
             projection: camera,
@@ -71,12 +68,12 @@ impl Material for Phong {
     }
 
     fn equal(&self, material: &dyn Any) -> bool {
-        let simple = match material.downcast_ref::<Self>() {
+        let _simple = match material.downcast_ref::<Self>() {
             Some(simple) => simple,
             None => return false,
         };
 
-        simple.light == self.light
+        true
     }
 
     fn to_any(self) -> Box<dyn Any> {

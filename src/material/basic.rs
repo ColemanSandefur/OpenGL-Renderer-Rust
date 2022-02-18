@@ -54,19 +54,19 @@ impl Default for MaterialParams {
 /// This shader renders objects and basic lighting.
 #[derive(Clone)]
 pub struct Basic {
-    light_pos: Vector3<f32>,
-    light_color: Vector3<f32>,
     program: Arc<Program>,
     basic_params: MaterialParams,
 }
 
 impl Basic {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let program = crate::material::insert_program!("../shaders/basic/vertex.glsl", "../shaders/basic/fragment.glsl", facade);
+        let program = crate::material::insert_program!(
+            "../shaders/basic/vertex.glsl",
+            "../shaders/basic/fragment.glsl",
+            facade
+        );
 
         Self {
-            light_pos: [0.0; 3].into(),
-            light_color: [1.0; 3].into(),
             program: Arc::new(program),
             basic_params: MaterialParams {
                 ..Default::default()
@@ -83,13 +83,6 @@ impl Basic {
     pub fn get_material_params_mut(&mut self) -> &mut MaterialParams {
         &mut self.basic_params
     }
-
-    pub fn set_light_pos(&mut self, pos: impl Into<Vector3<f32>>) {
-        self.light_pos = pos.into();
-    }
-    pub fn set_light_color(&mut self, color: impl Into<Vector3<f32>>) {
-        self.light_color = color.into();
-    }
 }
 
 impl Material for Basic {
@@ -100,10 +93,9 @@ impl Material for Basic {
         surface: &mut Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
-        _scene_data: &SceneData,
+        scene_data: &SceneData,
     ) {
-        let light_pos: [f32; 3] = self.light_pos.clone().into();
-        let light_color: [f32; 3] = self.light_color.clone().into();
+        let (light_pos, light_color) = scene_data.get_raw_lights().get_light(0);
         let camera_pos: [f32; 3] = [position[3][0], position[3][1], position[3][2]];
 
         let ambient: [f32; 3] = self.basic_params.ambient.into();
@@ -112,8 +104,8 @@ impl Material for Basic {
         let shininess = self.basic_params.shininess;
 
         let uniforms = uniform! {
-            light_pos: light_pos,
-            light_color: light_color,
+            light_pos: *light_pos,
+            light_color: *light_color,
             projection: camera,
             view: position,
             camera_pos: camera_pos,
@@ -143,13 +135,12 @@ impl Material for Basic {
     }
 
     fn equal(&self, material: &dyn Any) -> bool {
-        let simple = match material.downcast_ref::<Self>() {
+        let _simple = match material.downcast_ref::<Self>() {
             Some(simple) => simple,
             None => return false,
         };
 
-        simple.light_pos == self.light_pos && simple.light_color == self.light_color
-        //&& self.pbr_params == simple.pbr_params
+        true
     }
 
     fn to_any(self) -> Box<dyn Any> {

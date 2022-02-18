@@ -176,6 +176,7 @@ pub mod cubemap_loader;
 pub mod cubemap_render;
 pub mod gui;
 pub mod ibl;
+pub mod lights;
 pub mod material;
 pub mod model;
 pub mod pbr_model;

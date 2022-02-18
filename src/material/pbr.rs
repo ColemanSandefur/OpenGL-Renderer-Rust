@@ -1,17 +1,17 @@
-use cgmath::{Vector3, Matrix4};
-use glium::Blend;
-use glium::backend::Facade;
+use cgmath::{Matrix4, Vector3};
 use glium::backend::Context;
+use glium::backend::Facade;
 use glium::index::IndicesSource;
 use glium::texture::Texture2d;
 use glium::vertex::VerticesSource;
+use glium::Blend;
 use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::gui::DebugGUI;
 use crate::cubemap_loader::CubemapType;
+use crate::gui::DebugGUI;
 use crate::gui::DebugGUIFormat;
 use crate::renderer::{Renderable, SceneData};
 use crate::texture::TextureLoader;
@@ -130,7 +130,11 @@ impl PBRTextures {
 impl DebugGUI for PBRTextures {
     fn debug(&mut self, ui: &mut egui::Ui) {
         // Create a slider for the value, and create a new texture if the value was changed
-        let print_texture = |texture: &Texture2d, name: &str, ui: &mut egui::Ui, facade: &Rc<Context>| -> Option<Texture2d>{
+        let print_texture = |texture: &Texture2d,
+                             name: &str,
+                             ui: &mut egui::Ui,
+                             facade: &Rc<Context>|
+         -> Option<Texture2d> {
             // Only display if texture is a 1x1 texture, else the texture shouldn't be able to be
             // modified by sliders
             if texture.get_width() == 1 && texture.get_height().unwrap_or(1) == 1 {
@@ -141,7 +145,7 @@ impl DebugGUI for PBRTextures {
                     return TextureLoader::from_memory_rgb8(facade, &[pixel.0; 3], 1, 1).ok();
                 }
             }
-            
+
             None
         };
 
@@ -159,7 +163,7 @@ impl DebugGUI for PBRTextures {
                 }
             }
         }
-        
+
         if let Some(texture) = print_texture(&self.metallic, "Metallic", ui, &self.facade) {
             self.set_metallic_map(texture);
         }
@@ -182,26 +186,26 @@ impl DebugGUI for PBRTextures {
 /// program from the file system. To render you use the [`Material`] trait.
 #[derive(Clone)]
 pub struct PBR {
-    light_pos: Vector3<f32>,
-    light_color: Vector3<f32>,
     program: Arc<Program>,
     pbr_params: PBRTextures,
-    context: Rc<Context>,
+    _context: Rc<Context>,
     model: Matrix4<f32>,
 }
 
 impl PBR {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let program = crate::material::insert_program!("../shaders/pbr/vertex.glsl", "../shaders/pbr/fragment.glsl", facade);
+        let program = crate::material::insert_program!(
+            "../shaders/pbr/vertex.glsl",
+            "../shaders/pbr/fragment.glsl",
+            facade
+        );
         let pbr_params = PBRParams::default();
         let params = PBRTextures::from_params(pbr_params.clone(), facade);
 
         Self {
-            light_pos: [0.0; 3].into(),
-            light_color: [300.0; 3].into(),
             program: Arc::new(program),
             pbr_params: params,
-            context: facade.get_context().clone(),
+            _context: facade.get_context().clone(),
             model: Matrix4::from_translation([0.0; 3].into()),
         }
     }
@@ -216,14 +220,6 @@ impl PBR {
 
     pub fn get_pbr_params_mut(&mut self) -> &mut PBRTextures {
         &mut self.pbr_params
-    }
-
-    pub fn set_light_pos(&mut self, pos: impl Into<Vector3<f32>>) {
-        self.light_pos = pos.into();
-    }
-
-    pub fn set_light_color(&mut self, color: impl Into<Vector3<f32>>) {
-        self.light_color = color.into();
     }
 
     pub fn set_model_matrix(&mut self, model: Matrix4<f32>) {
@@ -245,8 +241,8 @@ impl Material for PBR {
         position: [[f32; 4]; 4],
         scene_data: &SceneData,
     ) {
-        let light_pos: [f32; 3] = self.light_pos.clone().into();
-        let light_color: [f32; 3] = self.light_color.clone().into();
+        let (light_pos, light_color) = scene_data.get_raw_lights().get_light(0);
+
         let camera_pos: [f32; 3] = [position[3][0], position[3][1], position[3][2]];
         let model_matrix: [[f32; 4]; 4] = self.model.into();
 
@@ -260,8 +256,8 @@ impl Material for PBR {
                     .minify_filter(glium::uniforms::MinifySamplerFilter::LinearMipmapLinear)
                     .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear);
                 let uniforms = uniform! {
-                    light_pos: light_pos,
-                    light_color: light_color,
+                    light_pos: *light_pos,
+                    light_color: *light_color,
                     projection: camera,
                     view: position,
                     model: model_matrix,
@@ -311,8 +307,8 @@ impl Material for PBR {
 
     fn equal(&self, _material: &dyn Any) -> bool {
         //let _simple = match material.downcast_ref::<Self>() {
-            //Some(simple) => simple,
-            //None => return false,
+        //Some(simple) => simple,
+        //None => return false,
         //};
 
         // There is currently no implementation for checking if PbrTextures are equal so to

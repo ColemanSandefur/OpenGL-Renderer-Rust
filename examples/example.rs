@@ -25,8 +25,8 @@ fn main() {
     let display = System::init("renderer");
     let facade = display.display.get_context().clone();
 
-    // Light positions should be moved from being stored in the material to stored in the scene
     let light_pos = [0.0, 0.4, -10.0];
+    let light_color = [300.0, 300.0, 300.0];
 
     let mut renderer = Renderer::new((*display.display).clone());
 
@@ -83,7 +83,6 @@ fn main() {
 
     // Load the Physically Based Rendering shader from the file system
     let mut pbr = PBR::load_from_fs(&facade);
-    pbr.set_light_pos(light_pos);
 
     //
     // Here we will load the model that will be rendered
@@ -123,6 +122,10 @@ fn main() {
             scene.set_camera(camera.get_matrix().into());
             scene.set_camera_pos(camera_pos);
             scene.set_skybox(Some(&skybox));
+            scene
+                .get_scene_data_mut()
+                .get_raw_lights_mut()
+                .add_light(light_pos, light_color);
 
             // send items to be rendered
             // IMPORTANT: you must set the camera position before submitting an object to be
