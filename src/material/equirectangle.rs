@@ -22,7 +22,11 @@ pub struct Equirectangle {
 
 impl Equirectangle {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
-        let program = crate::material::insert_program!("../shaders/equirectangle_to_cube/vertex.glsl", "../shaders/equirectangle_to_cube/fragment.glsl", facade);
+        let program = crate::material::insert_program!(
+            "../shaders/equirectangle_to_cube/vertex.glsl",
+            "../shaders/equirectangle_to_cube/fragment.glsl",
+            facade
+        );
 
         Self {
             program: Arc::new(program),
@@ -84,7 +88,10 @@ impl Equirectangle {
         let output_size = (1024, 1024);
 
         let (source_data, source_dimensions) = {
-            let buffer = BufReader::new(File::open(source).unwrap());
+            let buffer = BufReader::new(File::open(&source).expect(&format!(
+                "Unable to load {}",
+                source.as_os_str().to_str().unwrap()
+            )));
             let hdr_image = HdrDecoder::new(buffer).unwrap();
             let dimensions = (hdr_image.metadata().width, hdr_image.metadata().height);
 

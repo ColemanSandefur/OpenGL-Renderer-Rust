@@ -93,7 +93,7 @@ fn main() {
     skybox.set_brdf(Some(brdf));
 
     // Load the Physically Based Rendering shader from the file system
-    let mut pbr = PBR::load_from_fs(&*display.display);
+    let pbr = PBR::load_from_fs(&*display.display);
 
     //
     // Here we will load the model that will be rendered

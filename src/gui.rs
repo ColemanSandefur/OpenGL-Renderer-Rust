@@ -25,17 +25,30 @@ impl DebugGUIFormat {
     /// You can supply a buffer of values where each value will become a slider. You can also
     /// supply prefixes for each slider. If there are less names provided than values provided,
     /// names will be treated as a None value.
-    pub fn multi_slider<T: egui::emath::Numeric>(ui: &mut egui::Ui, values: &mut [T], names: Option<&[&str]>, range: RangeInclusive<T>) -> bool {
+    pub fn multi_slider<T: egui::emath::Numeric>(
+        ui: &mut egui::Ui,
+        values: &mut [T],
+        names: Option<&[&str]>,
+        range: RangeInclusive<T>,
+    ) -> bool {
         let mut changed = false;
 
         if names.is_none() || names.as_ref().unwrap().len() < values.len() {
             for i in 0..values.len() {
-                changed = changed | ui.add(egui::Slider::new(&mut values[i], range.clone()).max_decimals(2)).changed();
+                changed = changed
+                    | ui.add(egui::Slider::new(&mut values[i], range.clone()).max_decimals(2))
+                        .changed();
             }
         } else {
             let names = names.unwrap();
             for i in 0..values.len() {
-                changed = changed | ui.add(egui::Slider::new(&mut values[i], range.clone()).max_decimals(2).prefix(format!("{}:", names[i]))).changed();
+                changed = changed
+                    | ui.add(
+                        egui::Slider::new(&mut values[i], range.clone())
+                            .max_decimals(2)
+                            .prefix(format!("{}:", names[i])),
+                    )
+                    .changed();
             }
         }
 
@@ -82,7 +95,43 @@ impl DebugGUIFormat {
         rad[1] %= std::f32::consts::PI * 2.0;
         rad[2] %= std::f32::consts::PI * 2.0;
 
-        DebugGUIFormat::multi_slider(ui, rad, Some(&["x", "y", "z"]), 0.0..=std::f32::consts::PI * 2.0)
+        DebugGUIFormat::multi_slider(
+            ui,
+            rad,
+            Some(&["x", "y", "z"]),
+            0.0..=std::f32::consts::PI * 2.0,
+        )
+    }
+
+    /// Simple rotation sliders
+    ///
+    /// rad should be in the order of roll, pitch, yaw
+    pub fn euler(ui: &mut egui::Ui, rad: &mut [f32; 3]) -> bool {
+        const PI: f32 = std::f32::consts::PI;
+        // roll and yaw is limited to [-pi, pi]
+        let roll = ui
+            .add(
+                egui::Slider::new(&mut rad[0], -PI..=PI)
+                    .max_decimals(2)
+                    .prefix("roll: "),
+            )
+            .changed();
+        let pitch = ui
+            .add(
+                egui::Slider::new(&mut rad[1], -(PI / 2.0)..=(PI / 2.0))
+                    .max_decimals(2)
+                    .prefix("pitch: "),
+            )
+            .changed();
+        let yaw = ui
+            .add(
+                egui::Slider::new(&mut rad[2], -PI..=PI)
+                    .max_decimals(2)
+                    .prefix("yaw: "),
+            )
+            .changed();
+
+        roll || pitch || yaw
     }
 
     /// Simple position sliders

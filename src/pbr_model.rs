@@ -4,8 +4,11 @@ use crate::material::pbr::PBRParams;
 use crate::material::PBRTextures;
 use crate::material::PBR;
 use crate::renderer::RenderScene;
+use cgmath::Basis3;
+use cgmath::Matrix3;
 use cgmath::Matrix4;
 use cgmath::MetricSpace;
+use cgmath::Quaternion;
 use cgmath::Rad;
 use cgmath::Vector3;
 use glium::backend::Facade;
@@ -13,8 +16,8 @@ use glium::{IndexBuffer, VertexBuffer};
 use russimp::material::PropertyTypeInfo::FloatArray;
 use russimp::scene::PostProcess;
 use russimp::scene::Scene;
-use std::path::PathBuf;
 use std::error::Error;
+use std::path::PathBuf;
 
 use crate::vertex::Vertex;
 
@@ -41,7 +44,7 @@ impl PbrModelSegment {
     }
 
     /// Sets the translation matrix for all the vertices of the model.
-    /// 
+    ///
     /// You shouldn't need to use this.
     pub fn build_matrix(&mut self, model: Matrix4<f32>) {
         self.material.set_model_matrix(model);
@@ -60,6 +63,16 @@ impl PbrModelSegment {
     pub fn set_material(&mut self, material: PBR) {
         self.material = material;
     }
+
+    //vertex_buffer: VertexBuffer<Vertex>,
+    //index_buffer: IndexBuffer<u32>,
+    pub fn get_vertex_buffer(&self) -> &VertexBuffer<Vertex> {
+        &self.vertex_buffer
+    }
+
+    pub fn get_index_buffer(&self) -> &IndexBuffer<u32> {
+        &self.index_buffer
+    }
 }
 
 impl Clone for PbrModelSegment {
@@ -68,7 +81,8 @@ impl Clone for PbrModelSegment {
         let index_data = self.index_buffer.read().unwrap();
         let vertex_data = self.vertex_buffer.read().unwrap();
 
-        let index_buffer = IndexBuffer::new(facade, self.index_buffer.get_primitives_type(), &index_data).unwrap();
+        let index_buffer =
+            IndexBuffer::new(facade, self.index_buffer.get_primitives_type(), &index_data).unwrap();
         let vertex_buffer = VertexBuffer::new(facade, &vertex_data).unwrap();
         let material = self.material.clone();
 
@@ -112,7 +126,7 @@ impl DebugGUI for PbrModelSegment {
 #[derive(Clone)]
 pub struct PbrModel {
     position: Vector3<f32>,
-    rotation: Vector3<Rad<f32>>,
+    rotation_matrix: Matrix4<f32>,
     segments: Vec<PbrModelSegment>,
 }
 
@@ -122,9 +136,15 @@ impl PbrModel {
     /// This should primarily be used for loading glTF 2.0 (.glb) files as they support PBR
     /// materials. It does load wavefront (.obj) files, but the material will not look right due to
     /// wavefront not supporting pbr materials.
-    pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: PBR) -> Result<Self, Box<dyn Error>> {
+    pub fn load_from_fs(
+        path: PathBuf,
+        facade: &impl Facade,
+        material: PBR,
+    ) -> Result<Self, Box<dyn Error>> {
         let scene = Scene::from_file(
-            path.as_os_str().to_str().ok_or("file path could not be made into a string")?,
+            path.as_os_str()
+                .to_str()
+                .ok_or("file path could not be made into a string")?,
             vec![
                 PostProcess::CalculateTangentSpace,
                 PostProcess::Triangulate,
@@ -202,7 +222,7 @@ impl PbrModel {
                     }
                 } else if property.key == "$mat.shininess" {
                     if let FloatArray(data) = &property.data {
-                        let shininess = data[0].min(900.0)/900.0;
+                        let shininess = data[0].min(900.0) / 900.0;
                         let roughness = (1.0 - shininess).max(0.05);
 
                         basic_mat.set_roughness(roughness);
@@ -226,7 +246,7 @@ impl PbrModel {
 
         Ok(Self {
             position: [0.0; 3].into(),
-            rotation: [Rad(0.0); 3].into(),
+            rotation_matrix: Matrix4::from_angle_x(Rad(0.0)),
             segments,
         })
     }
@@ -248,7 +268,7 @@ impl PbrModel {
 
         Self {
             position: [0.0; 3].into(),
-            rotation: [Rad(0.0); 3].into(),
+            rotation_matrix: Matrix4::from_angle_x(Rad(0.0)),
             segments,
         }
     }
@@ -277,13 +297,36 @@ impl PbrModel {
 
     /// Rebuilds the transformation matrices for the model
     ///
-    /// You likely won't need to use this. This needs to be called when the position or rotation is modified. 
+    /// You likely won't need to use this. This needs to be called when the position or rotation is modified.
     /// When modifying the position or rotation with a function like `relative_move` or
     /// `relative_rotate` this will automatically be called.
     pub fn build_matrix(&mut self) {
-        let rotation_mat = Matrix4::from_angle_x(self.rotation.x)
-            * Matrix4::from_angle_y(self.rotation.y)
-            * Matrix4::from_angle_z(self.rotation.z);
+        let translation = Matrix4::from_translation(self.position);
+
+        let model = translation * self.rotation_matrix;
+
+        for segment in &mut self.segments {
+            segment.build_matrix(model.clone());
+        }
+    }
+
+    pub fn set_rotation_matrix(&mut self, mat: [[f32; 4]; 4]) {
+        let rotation_mat = Matrix4::from(mat);
+        let translation = Matrix4::from_translation(self.position);
+
+        let model = translation * rotation_mat;
+
+        for segment in &mut self.segments {
+            segment.build_matrix(model.clone());
+        }
+    }
+
+    pub fn set_rotation_axis_angle(
+        &mut self,
+        axis: impl Into<Vector3<f32>>,
+        angle: impl Into<Rad<f32>>,
+    ) {
+        let rotation_mat = Matrix4::from_axis_angle(axis.into(), angle);
         let translation = Matrix4::from_translation(self.position);
 
         let model = translation * rotation_mat;
@@ -298,12 +341,20 @@ impl PbrModel {
     /// Used to translate the object relative to its current position.
     ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// model.relative_move([1.0, 0.0, 0.0]);
     /// ```
     pub fn relative_move(&mut self, position: impl Into<Vector3<f32>>) {
         self.position = self.position + position.into();
+        self.build_matrix();
+    }
+
+    /// Moves the model
+    ///
+    /// Used to set the translation.
+    pub fn set_translation(&mut self, position: impl Into<Vector3<f32>>) {
+        self.position = position.into();
         self.build_matrix();
     }
 
@@ -318,9 +369,35 @@ impl PbrModel {
     /// ```
     pub fn relative_rotate(&mut self, rotation: impl Into<Vector3<Rad<f32>>>) {
         let rotation = rotation.into();
-        self.rotation[0] += rotation[0];
-        self.rotation[1] += rotation[1];
-        self.rotation[2] += rotation[2];
+        self.rotation_matrix = Matrix4::from_angle_x(rotation.x)
+            * Matrix4::from_angle_y(rotation.y)
+            * Matrix4::from_angle_z(rotation.z);
+        self.build_matrix();
+    }
+
+    pub fn set_rotation(&mut self, rotation: impl Into<Vector3<Rad<f32>>>) {
+        let rotation = rotation.into();
+        self.rotation_matrix = Matrix4::from_angle_x(rotation.x)
+            * Matrix4::from_angle_y(rotation.y)
+            * Matrix4::from_angle_z(rotation.z);
+        self.build_matrix();
+    }
+
+    pub fn set_rotation_euler(&mut self, yaw: Rad<f32>, pitch: Rad<f32>, roll: Rad<f32>) {
+        // yaw, pitch, roll => z, y, x
+        self.rotation_matrix = Matrix4::from_angle_z(Rad(0.0));
+        self.relative_rotate_euler(yaw, pitch, roll);
+
+        self.build_matrix();
+    }
+
+    pub fn relative_rotate_euler(&mut self, yaw: Rad<f32>, pitch: Rad<f32>, roll: Rad<f32>) {
+        // yaw, pitch, roll => z, y, x
+        let new_rot =
+            Matrix4::from_angle_z(yaw) * Matrix4::from_angle_y(pitch) * Matrix4::from_angle_x(roll);
+
+        self.rotation_matrix = self.rotation_matrix * new_rot;
+
         self.build_matrix();
     }
 
@@ -331,13 +408,13 @@ impl PbrModel {
 
     /// Retrieve the segments of the model
     ///
-    /// Can be useful for changing a segment's material. 
+    /// Can be useful for changing a segment's material.
     ///
     /// # Example
     ///
     /// ```
     /// let segment = self.get_segments_mut().get_mut(0)?;
-    /// 
+    ///
     /// // Modify the material that belongs to the segment
     /// segment.get_material_mut();
     /// ```
@@ -351,8 +428,64 @@ impl PbrModel {
     }
 
     /// Retrieve the rotation of the model
-    pub fn get_rotation(&self) -> &Vector3<Rad<f32>> {
-        &self.rotation
+    //pub fn get_rotation(&self) -> &Vector3<Rad<f32>> {
+    //&self.rotation
+    //}
+
+    fn is_close(x: f32, y: f32) -> bool {
+        let rtol = 0.00001;
+        let atol = 0.00000001;
+
+        (x - y).abs() <= atol + rtol * y.abs()
+    }
+
+    /// Retrieve euler angles
+    ///
+    /// roll, pitch, yaw
+    pub fn get_euler_angles(&self) -> Vector3<f32> {
+        // psi, theta, phi => x, y, z => roll, pitch, yaw
+        let mat = &self.rotation_matrix;
+        let theta;
+        let psi;
+        let mut phi = 0.0;
+
+        if Self::is_close(mat[2][0], -1.0) {
+            theta = std::f32::consts::FRAC_PI_2;
+            psi = mat[0][1].atan2(mat[0][2]);
+        } else if Self::is_close(mat[2][0], 1.0) {
+            theta = -std::f32::consts::FRAC_PI_2;
+            psi = (-mat[0][1]).atan2(-mat[0][2]);
+        } else {
+            theta = -self.rotation_matrix[2][0].asin();
+            let cos_theta = theta.cos();
+
+            psi = (mat[2][1] / cos_theta).atan2(mat[2][2] / cos_theta);
+            phi = (mat[1][0] / cos_theta).atan2(mat[0][0] / cos_theta);
+        }
+
+        [psi, theta, phi].into()
+    }
+
+    pub fn get_rotation_mat4(&self) -> &Matrix4<f32> {
+        &self.rotation_matrix
+    }
+
+    pub fn get_rotation_mat3(&self) -> Matrix3<f32> {
+        let mat4 = &self.rotation_matrix;
+        let mat3 = [
+            [mat4[0][0], mat4[0][1], mat4[0][2]],
+            [mat4[1][0], mat4[1][1], mat4[1][2]],
+            [mat4[2][0], mat4[2][1], mat4[2][2]],
+        ];
+        mat3.into()
+    }
+
+    pub fn get_basis3(&self) -> Basis3<f32> {
+        let mat3 = self.get_rotation_mat3();
+        let basis: Quaternion<f32> = mat3.into();
+        let rot: Basis3<f32> = basis.into();
+
+        rot
     }
 }
 
@@ -368,15 +501,11 @@ impl DebugGUI for PbrModel {
 
         // Add rotation
         ui.label("rotation");
-        let mut rotation: [f32; 3] = [
-            self.rotation[0].0,
-            self.rotation[1].0,
-            self.rotation[2].0,
-        ];
-        if DebugGUIFormat::rotation(ui, &mut rotation) {
-            self.rotation.x = Rad(rotation[0]);
-            self.rotation.y = Rad(rotation[1]);
-            self.rotation.z = Rad(rotation[2]);
+        let mut rotation: [f32; 3] = (self.get_euler_angles()).into();
+
+        //if DebugGUIFormat::rotation(ui, &mut rotation) {
+        if DebugGUIFormat::euler(ui, &mut rotation) {
+            self.set_rotation_euler(Rad(rotation[2]), Rad(rotation[1]), Rad(rotation[0]));
             self.build_matrix();
         }
 
