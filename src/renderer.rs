@@ -226,6 +226,9 @@ impl<'a> RenderScene<'a> {
     pub fn set_camera_pos(&mut self, pos: [f32; 3]) {
         self.scene_data.camera_pos = pos;
     }
+    pub fn set_camera_rot(&mut self, rot: [Rad<f32>; 3]) {
+        self.scene_data.camera_rot = rot;
+    }
 
     pub fn set_skybox(&mut self, skybox: Option<&'a Skybox>) {
         self.scene_data.skybox = skybox;

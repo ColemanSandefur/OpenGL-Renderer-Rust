@@ -7,6 +7,7 @@ use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::error::Error;
 
 use super::Material;
 
@@ -31,18 +32,18 @@ impl SkyboxMat {
         facade: &impl Facade,
         directory: impl Into<PathBuf>,
         extension: &str,
-    ) -> Self {
+    ) -> Result<Self, Box<dyn Error>> {
         let program = crate::material::insert_program!("../shaders/skybox/vertex.glsl", "../shaders/skybox/fragment.glsl", facade);
 
         println!("Loading cubemap");
         //let cubemap = CubemapLoader::load_from_fs_hdr("hdr_cubemap/".into(), "hdr", facade);
-        let cubemap = CubemapLoader::load_from_fs(directory.into(), extension, facade);
+        let cubemap = CubemapLoader::load_from_fs(directory.into(), extension, facade)?;
         println!("Finished loading cubemap");
 
-        Self {
+        Ok(Self {
             program: Arc::new(program),
             skybox: Arc::new(cubemap),
-        }
+        })
     }
 
     // To be reimplemented

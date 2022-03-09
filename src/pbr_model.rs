@@ -17,7 +17,7 @@ use russimp::material::PropertyTypeInfo::FloatArray;
 use russimp::scene::PostProcess;
 use russimp::scene::Scene;
 use std::error::Error;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::vertex::Vertex;
 
@@ -136,13 +136,17 @@ impl PbrModel {
     /// This should primarily be used for loading glTF 2.0 (.glb) files as they support PBR
     /// materials. It does load wavefront (.obj) files, but the material will not look right due to
     /// wavefront not supporting pbr materials.
-    pub fn load_from_fs(
-        path: PathBuf,
+    pub fn load_from_fs<P>(
+        path: P,
         facade: &impl Facade,
         material: PBR,
-    ) -> Result<Self, Box<dyn Error>> {
+    ) -> Result<Self, Box<dyn Error>>
+    where
+        P: AsRef<Path>,
+    {
         let scene = Scene::from_file(
-            path.as_os_str()
+            path.as_ref()
+                .as_os_str()
                 .to_str()
                 .ok_or("file path could not be made into a string")?,
             vec![

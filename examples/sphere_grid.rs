@@ -1,18 +1,18 @@
-use opengl_render::material::PBRTextures;
-use opengl_render::material::PBRParams;
-use std::path::PathBuf;
-use opengl_render::ibl::Ibl;
 use cgmath::Rad;
-use opengl_render::camera::Camera;
-use opengl_render::cubemap_loader::{CubemapLoader};
-use opengl_render::ibl::{IrradianceConverter, Prefilter, BRDF};
 use cgmath::Vector3;
 use glium::backend::Facade;
+use opengl_render::camera::Camera;
+use opengl_render::cubemap_loader::CubemapLoader;
+use opengl_render::ibl::Ibl;
+use opengl_render::ibl::{IrradianceConverter, Prefilter, BRDF};
+use opengl_render::material::PBRParams;
+use opengl_render::material::PBRTextures;
 use opengl_render::material::{Equirectangle, SkyboxMat, PBR};
 use opengl_render::pbr_model::PbrModel;
 use opengl_render::skybox::Skybox;
 use opengl_render::support::System;
 use opengl_render::{glium::Surface, renderer::Renderer};
+use std::path::PathBuf;
 
 const RPM: f32 = std::f32::consts::PI * 2.0 / 60.0 / 1000.0;
 
@@ -44,17 +44,19 @@ fn main() {
     // Convert an equirectangular image into a cubemap and store it to the file system
     // This generated cubemap will be used as the skybox
     let compute = Equirectangle::load_from_fs(&*display.display);
-    compute.compute_from_fs_hdr(
-        skybox_file,
-        ibl_dir.join("cubemap/"),
-        "png",
-        &*display.display,
-        Camera::new(Rad(std::f32::consts::PI * 0.5), 1024, 1024).into(),
-    );
+    compute
+        .compute_from_fs_hdr(
+            skybox_file,
+            ibl_dir.join("cubemap/"),
+            "png",
+            &*display.display,
+            Camera::new(Rad(std::f32::consts::PI * 0.5), 1024, 1024).into(),
+        )
+        .unwrap();
 
     //
     // Here we will generate the irradiance map, prefilter map, and brdf texture
-    // 
+    //
     // The irradiance map maps the light output from the skybox to use as ambient light,
     // The prefilter map is used for reflections
     // The brdf is the same for all skyboxes, we just generate it to make sure that it exists
@@ -66,17 +68,23 @@ fn main() {
     let brdf_shader = BRDF::new(&*display.display);
 
     // Load the skybox again to generate the maps
-    let ibl_cubemap = CubemapLoader::load_from_fs(
-        ibl_dir.join("cubemap/"),
-        "png",
-        &*display.display,
-    );
+    let ibl_cubemap =
+        CubemapLoader::load_from_fs(ibl_dir.join("cubemap/"), "png", &*display.display).unwrap();
 
     // Generate the maps and store them to the file system
-    opengl_render::ibl::generate_ibl_from_cubemap(&*display.display, &ibl_cubemap, ibl_dir.clone(), irradiance_converter, prefilter_shader, brdf_shader);
+    opengl_render::ibl::generate_ibl_from_cubemap(
+        &*display.display,
+        &ibl_cubemap,
+        ibl_dir.clone(),
+        irradiance_converter,
+        prefilter_shader,
+        brdf_shader,
+    )
+    .unwrap();
 
     // Load the skybox from the file system
-    let skybox_mat = SkyboxMat::load_from_fs(&*display.display, ibl_dir.join("cubemap/"), "png");
+    let skybox_mat =
+        SkyboxMat::load_from_fs(&*display.display, ibl_dir.join("cubemap/"), "png").unwrap();
     // Will hold the generated maps
     let mut skybox = Skybox::new(&*display.display, skybox_mat);
 
@@ -85,7 +93,7 @@ fn main() {
         prefilter,
         irradiance_map: ibl,
         brdf,
-    } = opengl_render::ibl::load_ibl_fs(&*display.display, ibl_dir);
+    } = opengl_render::ibl::load_ibl_fs(&*display.display, ibl_dir).unwrap();
 
     // Assign irradiance map, prefilter map and brdf to the skybox wrapper
     skybox.set_ibl(Some(ibl));
@@ -99,7 +107,14 @@ fn main() {
     // Here we will load the model that will be rendered
     //
 
-    let mut models = generate_cubes(WIDTH, HEIGHT, [0.0, 0.0, 250.0].into(), &*display.display, pbr.clone(), model_dir);
+    let mut models = generate_cubes(
+        WIDTH,
+        HEIGHT,
+        [0.0, 0.0, 250.0].into(),
+        &*display.display,
+        pbr.clone(),
+        model_dir,
+    );
 
     models[0].relative_move([0.0, 0.0, 3.0]);
 
@@ -112,7 +127,11 @@ fn main() {
         move |frame, delta_time, _egui| {
             // Time between frames should be used when moving or rotating objects
             let delta_ms = delta_time.as_micros() as f32 / 1000.0;
-            println!("frame-time: {:>7.3}, fps: {:.0}", delta_ms, 1000.0 / delta_ms);
+            println!(
+                "frame-time: {:>7.3}, fps: {:.0}",
+                delta_ms,
+                1000.0 / delta_ms
+            );
 
             // To render a frame, we must begin a new scene.
             // The scene will keep track of variables that apply to the whole scene, like the
@@ -175,12 +194,7 @@ fn generate_cubes(
             0 as f32,
         );
 
-    let model = PbrModel::load_from_fs(
-        model,
-        &*facade,
-        pbr.clone(),
-    ).unwrap();
-
+    let model = PbrModel::load_from_fs(model, &*facade, pbr.clone()).unwrap();
 
     for row in 0..height {
         let metallic = row as f32 / height as f32;

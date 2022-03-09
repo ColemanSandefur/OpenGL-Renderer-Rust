@@ -6,8 +6,10 @@ use glium::Program;
 use glium::Texture2d;
 use image::hdr::HdrDecoder;
 use image::io::Reader as ImageReader;
+use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -33,30 +35,40 @@ impl Equirectangle {
         }
     }
 
-    pub fn compute_from_fs(
+    pub fn compute_from_fs<P>(
         &self,
         source: PathBuf,
-        destination_dir: PathBuf,
+        destination_dir: P,
         extension: &str,
         facade: &impl Facade,
         camera: Camera,
-    ) {
-        let output_size = (1024, 1024);
+    ) -> Result<(), Box<dyn Error>>
+    where
+        P: AsRef<Path>,
+    {
+        // let output_size = (1024, 1024);
+        let output_size = (2048, 2048);
 
         let (source_data, source_dimensions) = {
-            let image = ImageReader::open(source)
-                .unwrap()
-                .decode()
-                .unwrap()
-                .into_rgb8();
+            let mut image = ImageReader::open(source)?.decode()?.into_rgb8();
 
             let dimensions = image.dimensions();
+
+            for width in 0..dimensions.0 / 2 {
+                for height in 0..dimensions.1 {
+                    let p = image.get_pixel(width, height).clone();
+                    let p2 = image.get_pixel(dimensions.1 - width, height).clone();
+
+                    image.put_pixel(width, height, p2);
+                    image.put_pixel(dimensions.1 - width, height, p);
+                }
+            }
 
             (image.into_raw(), dimensions)
         };
         let source_image = RawImage2d::from_raw_rgb(source_data, source_dimensions);
 
-        let source_texture = Texture2d::new(facade, source_image).unwrap();
+        let source_texture = Texture2d::new(facade, source_image)?;
 
         let generate_uniforms = |projection, view| {
             uniform! {
@@ -75,8 +87,11 @@ impl Equirectangle {
             camera,
             generate_uniforms,
             &*self.program,
-        );
+        )?;
+
+        Ok(())
     }
+
     pub fn compute_from_fs_hdr(
         &self,
         source: PathBuf,
@@ -84,24 +99,45 @@ impl Equirectangle {
         extension: &str,
         facade: &impl Facade,
         camera: Camera,
-    ) {
+    ) -> Result<(), Box<dyn Error>> {
         let output_size = (1024, 1024);
 
         let (source_data, source_dimensions) = {
-            let buffer = BufReader::new(File::open(&source).expect(&format!(
+            let buffer = BufReader::new(File::open(&source).ok().ok_or(format!(
                 "Unable to load {}",
                 source.as_os_str().to_str().unwrap()
-            )));
-            let hdr_image = HdrDecoder::new(buffer).unwrap();
+            ))?);
+            let hdr_image = HdrDecoder::new(buffer)?;
             let dimensions = (hdr_image.metadata().width, hdr_image.metadata().height);
 
-            let output: Vec<f32> = hdr_image
-                .read_image_hdr()
-                .unwrap()
+            let mut pixels = hdr_image
+                .read_image_hdr()?
+                .into_iter()
+                .map(|rgb| {
+                    return {
+                        let values = rgb.0;
+                        values
+                    };
+                })
+                .collect::<Vec<[f32; 3]>>();
+
+            for width in 0..dimensions.0 / 2 {
+                for height in 0..dimensions.1 {
+                    let index = (width + (height * dimensions.0)) as usize;
+                    let index2 = ((height * dimensions.0) + (dimensions.0 - width - 1)) as usize;
+                    let p = pixels[index];
+                    let p2 = pixels[index2];
+
+                    pixels[index] = p2;
+                    pixels[index2] = p;
+                }
+            }
+
+            let output: Vec<f32> = pixels
                 .into_iter()
                 .flat_map(|rgb| {
                     return {
-                        let values = rgb.0;
+                        let values = rgb;
                         values
                     };
                 })
@@ -112,7 +148,7 @@ impl Equirectangle {
 
         let source_image = RawImage2d::from_raw_rgb(source_data, source_dimensions);
 
-        let source_texture = Texture2d::new(facade, source_image).unwrap();
+        let source_texture = Texture2d::new(facade, source_image)?;
 
         let generate_uniforms = |projection, view| {
             uniform! {
@@ -131,6 +167,8 @@ impl Equirectangle {
             camera,
             generate_uniforms,
             &*self.program,
-        );
+        )?;
+
+        Ok(())
     }
 }

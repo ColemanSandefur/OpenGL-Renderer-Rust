@@ -75,29 +75,39 @@ impl CubemapLoader {
     ///
     /// It will look for files named "right", "left", "top", "bottom", "front", "back" (with the
     /// provided extension) in the provided directory.
-    pub fn load_from_fs(directory: PathBuf, extension: &str, facade: &impl Facade) -> CubemapType {
-        let images = Self::create_paths(directory, extension)
-            .into_iter()
-            .map(|path| ImageReader::open(path).unwrap().decode().unwrap());
+    pub fn load_from_fs(
+        directory: PathBuf,
+        extension: &str,
+        facade: &impl Facade,
+    ) -> Result<CubemapType, Box<dyn Error>> {
+        let paths = Self::create_paths(directory, extension);
+        let mut images = Vec::new();
+        for path in paths {
+            let image = ImageReader::open(&path)?.decode()?;
+
+            images.push(image);
+        }
 
         let orientation = CubeOrientation::from_array(images).unwrap();
 
         let cubemap = Self::load_cubemap(facade, vec![orientation]);
 
-        CubemapType::Cubemap(cubemap)
+        Ok(CubemapType::Cubemap(cubemap))
     }
 
     /// Loads the Cubemap from the directory provided.
     ///
-    /// It will look for folders named a number (ex. 0, 1, 2, 3) corresponding to mipmap layer 
+    /// It will look for folders named a number (ex. 0, 1, 2, 3) corresponding to mipmap layer
     /// (ex. 0 is the first layer, 1 is the second, ...) and in each folder it looks for files
     /// named "right", "left", "top", "bottom", "front", "back" (with the
     /// provided extension) in the provided directory.
+    ///
+    /// It will return Err if there were no cubemaps were found.
     pub fn load_mips_fs(
         mut directory: PathBuf,
         extension: &str,
         facade: &impl Facade,
-    ) -> CubemapType {
+    ) -> Result<CubemapType, Box<dyn Error>> {
         if directory.is_file() {
             directory.pop();
         }
@@ -107,15 +117,14 @@ impl CubemapLoader {
         while directory.join(format!("{}", level)).exists() {
             let sub_directory = directory.join(format!("{}", level));
 
-            let images = Self::create_paths(sub_directory, extension)
-                .into_iter()
-                .map(|path| {
-                    let image = ImageReader::open(path).unwrap().decode().unwrap();
+            let paths = Self::create_paths(sub_directory, extension);
+            let mut images = Vec::new();
+            for path in paths {
+                let image = ImageReader::open(path)?.decode()?;
+                images.push(image);
+            }
 
-                    image
-                });
-
-            let orientation = CubeOrientation::from_array(images).unwrap();
+            let orientation = CubeOrientation::from_array(images)?;
 
             cubes.push(orientation);
 
@@ -123,15 +132,16 @@ impl CubemapLoader {
         }
 
         if cubes.len() == 0 {
-            println!(
-                "Unable to find any directories in {}",
+            return Err(format!(
+                "Unable to find any cubemaps in \"{}\".",
                 directory.as_os_str().to_str().unwrap()
-            );
+            )
+            .into());
         }
 
         let cubemap = Self::load_cubemap_mips(facade, cubes);
 
-        CubemapType::Cubemap(cubemap)
+        Ok(CubemapType::Cubemap(cubemap))
     }
 
     /// Loads a cubemap from memory
@@ -372,7 +382,7 @@ impl CubeOrientation {
     /// Images should be provided in the order of right, left, top, bottom, front, back ([`the same
     /// order as face assignment in opengl`](https://www.khronos.org/opengl/wiki/Cubemap_Texture#Creation)). I'd
     /// recommend using [`new`] as this can be error prone, but this is here for convenience.
-    /// 
+    ///
     /// Returns `Err` when there weren't enough elements
     ///
     /// [`new`]: Self::new
@@ -380,7 +390,7 @@ impl CubeOrientation {
         faces: impl IntoIterator<Item = DynamicImage>,
     ) -> Result<Self, Box<dyn Error>> {
         let mut iter = faces.into_iter();
-        let error_msg = "Vector didn't have enough textures";
+        let error_msg = "Vector didn't have enough textures, it should have 6 elements.";
         Ok(CubeOrientation {
             right: iter.next().ok_or(error_msg)?,
             left: iter.next().ok_or(error_msg)?,

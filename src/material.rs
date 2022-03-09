@@ -4,7 +4,7 @@ use glium::{index::IndicesSource, vertex::VerticesSource, Program};
 use std::any::Any;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path};
 
 pub mod basic;
 pub mod equirectangle;
@@ -22,7 +22,7 @@ use crate::renderer::SceneData;
 
 /// A shader material
 ///
-/// This is how shaders are ran in the [`RenderScene`](crate::renderer::RenderScene). 
+/// This is how shaders are ran in the [`RenderScene`](crate::renderer::RenderScene).
 ///
 /// # Example
 ///
@@ -34,7 +34,7 @@ use crate::renderer::SceneData;
 /// use glium::{BackfaceCullingMode, DrawParameters, Program};
 /// use std::any::Any;
 /// use std::sync::Arc;
-/// 
+///
 /// use crate::renderer::SceneData;
 /// use crate::material::Material;
 ///
@@ -144,7 +144,7 @@ pub trait Material: 'static {
     ///
     /// [`clone_sized`]: Self::clone_sized
     fn clone_material(&self) -> Box<dyn Material>;
-    
+
     /// Cloning where you know the type.
     ///
     /// Can be extremely useful with generics, as it will keep its type.
@@ -170,26 +170,29 @@ pub trait Material: 'static {
 }
 
 /// A simple macro which will include fragment and vertex shaders in the binary
-/// 
+///
 /// The preferred way to load shaders since portability is guaranteed.
 #[macro_export]
 macro_rules! insert_program {
     ($vertex:expr, $fragment:expr, $facade:expr) => {
         crate::material::compile_program($facade, &include_str!($vertex), &include_str!($fragment))
-    }
+    };
 }
 
 pub use insert_program;
 
 /// Load program from file system
 ///
-/// A simple helper function to load the vertex and fragment shaders and compile them as a program. 
+/// A simple helper function to load the vertex and fragment shaders and compile them as a program.
 /// The `insert_program` macro should be used for increased portability, but it will have to recompile the program when you change a shader.
-pub fn load_program(facade: &impl Facade, mut path: PathBuf) -> Program {
+pub fn load_program<P>(facade: &impl Facade, path: P) -> Program
+where
+    P: AsRef<Path>,
+{
+    let mut path = path.as_ref().to_path_buf();
     if path.is_dir() {
         path.push("vertex.glsl");
     }
-
 
     let mut vertex_shader_file = File::open(path.with_file_name("vertex.glsl")).unwrap();
     let mut vertex_shader_src = String::new();
@@ -206,5 +209,7 @@ pub fn load_program(facade: &impl Facade, mut path: PathBuf) -> Program {
 }
 
 pub fn compile_program(facade: &impl Facade, vertex: &str, fragment: &str) -> Program {
-    Program::from_source(facade, &vertex, &fragment, None).expect(&format!("Error compiling shader"))
+    Program::from_source(facade, &vertex, &fragment, None)
+        .expect(&format!("Error compiling shader"))
 }
+

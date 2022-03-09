@@ -5,8 +5,9 @@ use glium::{
     uniforms::Uniforms, vertex::VertexBuffer, DrawParameters, Program, Surface,
 };
 use image::{DynamicImage, ImageBuffer};
+use std::error::Error;
 use std::fs::create_dir_all;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::{camera::Camera, vertex::Vertex};
 
@@ -25,6 +26,15 @@ pub struct CubemapRender {
 impl CubemapRender {
     // Directions and positions for the camera to face when rendering sides of the cube to a
     // texture buffer
+    //const CAMERA_DIRECTIONS: [[[f32; 3]; 2]; 6] = [
+    //Center         Up
+    //[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],   // back -> right
+    //[[-1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],  // front -> left
+    //[[0.0, 1.0, 0.0], [1.0, 1.0, 0.0]],   // top
+    //[[0.0, -1.0, 0.0], [-1.0, 0.0, 0.0]], // bottom
+    //[[0.0, 0.0, 1.0], [0.0, 1.0, 0.0]],   // right -> front
+    //[[0.0, 0.0, -1.0], [0.0, 1.0, 0.0]],  // left -> back
+    //];
     const CAMERA_DIRECTIONS: [[[f32; 3]; 2]; 6] = [
         [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0]],   // right
         [[0.0, 0.0, -1.0], [0.0, 1.0, 0.0]],  // left
@@ -36,7 +46,7 @@ impl CubemapRender {
     const FILE_NAMES: [&'static str; 6] = ["right", "left", "top", "bottom", "front", "back"];
 
     /// Create a CubemapRender.
-    /// 
+    ///
     /// You should probably refrain from calling this very often since it creates a [`VertexBuffer`]
     /// which can be expensive. It is better to create one CubemapRender and pass it around.
     ///
@@ -56,20 +66,23 @@ impl CubemapRender {
     ///
     /// output_dimensions is the dimensions of the desired texture. gen_uniforms is called once for
     /// every side of the cubemap.
-    pub fn render<'a, 'b, U>(
+    pub fn render<'a, 'b, U, P>(
         &self,
         output_dimensions: (u32, u32),
-        mut output_directory: PathBuf,
+        output_directory: P,
         extension: &str,
         facade: &impl Facade,
         mut camera: Camera,
         gen_uniforms: impl Fn([[f32; 4]; 4], [[f32; 4]; 4]) -> U,
         program: &Program,
-    ) where
+    ) -> Result<(), Box<dyn Error>>
+    where
         U: Uniforms,
+        P: AsRef<Path>,
     {
         create_dir_all(&output_directory).unwrap();
 
+        let mut output_directory = output_directory.as_ref().to_path_buf();
         if output_directory.is_dir() {
             output_directory.push("output.random");
         }
@@ -82,11 +95,10 @@ impl CubemapRender {
             output_dimensions.1,
         )
         .unwrap();
-        let buffer_depth =
-            DepthTexture2d::empty(facade, output_dimensions.0, output_dimensions.1).unwrap();
+        let buffer_depth = DepthTexture2d::empty(facade, output_dimensions.0, output_dimensions.1)?;
 
         let mut frame_buffer =
-            SimpleFrameBuffer::with_depth_buffer(facade, &buffer_texture, &buffer_depth).unwrap();
+            SimpleFrameBuffer::with_depth_buffer(facade, &buffer_texture, &buffer_depth)?;
 
         let camera_directions: Vec<Matrix4<f32>> = Self::CAMERA_DIRECTIONS
             .into_iter()
@@ -121,7 +133,7 @@ impl CubemapRender {
                 .unwrap();
 
             let mut output = Vec::new();
-            for pixel in buffer_texture.read_to_pixel_buffer().read().unwrap() {
+            for pixel in buffer_texture.read_to_pixel_buffer().read()? {
                 output.push(pixel.0);
                 output.push(pixel.1);
                 output.push(pixel.2);
@@ -140,6 +152,7 @@ impl CubemapRender {
                 )
                 .unwrap();
         }
+        Ok(())
     }
 }
 

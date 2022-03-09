@@ -3,7 +3,8 @@ use crate::cubemap_loader::CubemapType;
 use crate::cubemap_render::CubemapRender;
 use glium::backend::Facade;
 use glium::Program;
-use std::path::PathBuf;
+use std::error::Error;
+use std::path::Path;
 use std::sync::Arc;
 
 pub struct IrradianceConverter {
@@ -12,21 +13,28 @@ pub struct IrradianceConverter {
 
 impl IrradianceConverter {
     pub fn load(facade: &impl Facade) -> Self {
-        let program = crate::material::insert_program!("../shaders/irradiance_convolution/vertex.glsl", "../shaders/irradiance_convolution/fragment.glsl", facade);
+        let program = crate::material::insert_program!(
+            "../shaders/irradiance_convolution/vertex.glsl",
+            "../shaders/irradiance_convolution/fragment.glsl",
+            facade
+        );
 
         Self {
             program: Arc::new(program),
         }
     }
 
-    pub fn calculate_to_fs(
+    pub fn calculate_to_fs<P>(
         &self,
         cubemap: &CubemapType,
-        destination_dir: PathBuf,
+        destination_dir: P,
         extension: &str,
         facade: &impl Facade,
         mut camera: Camera,
-    ) {
+    ) -> Result<(), Box<dyn Error>>
+    where
+        P: AsRef<Path>,
+    {
         let output_size = (32, 32);
         camera.set_width(output_size.0);
         camera.set_height(output_size.1);
@@ -47,6 +55,8 @@ impl IrradianceConverter {
             camera,
             generate_uniforms,
             &*self.program,
-        );
+        )?;
+
+        Ok(())
     }
 }

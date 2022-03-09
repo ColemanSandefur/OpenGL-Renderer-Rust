@@ -1,13 +1,13 @@
 use crate::renderer::RenderScene;
-use std::error::Error;
-use russimp::scene::PostProcess;
-use russimp::scene::Scene;
 use cgmath::Matrix4;
 use cgmath::Rad;
 use cgmath::Vector3;
 use glium::backend::Facade;
 use glium::{IndexBuffer, VertexBuffer};
-use std::path::PathBuf;
+use russimp::scene::PostProcess;
+use russimp::scene::Scene;
+use std::error::Error;
+use std::path::Path;
 
 use crate::{material::Material, vertex::Vertex};
 
@@ -54,7 +54,7 @@ impl<T: Material> ModelSegment<T> {
 /// The most basic form of a model provided in this library. It can have any type of [`Material`].
 /// The downside is that models loaded from the file system won't have the right materials. You
 /// should use a wrapper struct like [`PbrModel`] to have materials loaded from the file system.
-/// The `Model` also holds the position and rotation of the model (in world space). This is 
+/// The `Model` also holds the position and rotation of the model (in world space). This is
 /// how you will move the model around in the scene. To render the model you will call `render`
 /// on the object and pass in a [`RenderScene`] which will control when the model should be rendered.
 ///
@@ -87,9 +87,19 @@ impl<T: Material> Model<T> {
     /// Can be used for multiple types of models, I have only tested Wavefront (.obj) or glTF 2.0
     /// (.glb). This won't set/load any materials from the file (due to the generics), but the vertices and normals
     /// should be right.
-    pub fn load_from_fs(path: PathBuf, facade: &impl Facade, material: T) -> Result<Self, Box<dyn Error>> {
+    pub fn load_from_fs<P>(
+        path: P,
+        facade: &impl Facade,
+        material: T,
+    ) -> Result<Self, Box<dyn Error>>
+    where
+        P: AsRef<Path>,
+    {
         let scene = Scene::from_file(
-            path.as_os_str().to_str().ok_or("file path couldn't be made into a string")?,
+            path.as_ref()
+                .as_os_str()
+                .to_str()
+                .ok_or("file path couldn't be made into a string")?,
             vec![
                 PostProcess::CalculateTangentSpace,
                 PostProcess::Triangulate,
@@ -167,7 +177,7 @@ impl<T: Material> Model<T> {
 
     /// Rebuilds the transformation matrices for the model
     ///
-    /// You likely won't need to use this. This needs to be called when the position or rotation is modified. 
+    /// You likely won't need to use this. This needs to be called when the position or rotation is modified.
     /// When modifying the position or rotation with a function like `relative_move` or
     /// `relative_rotate` this will automatically be called.
     pub fn build_matrix(&mut self) {
@@ -188,7 +198,7 @@ impl<T: Material> Model<T> {
     /// Used to translate the object relative to its current position.
     ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// model.relative_move([1.0, 0.0, 0.0]);
     /// ```
@@ -221,13 +231,13 @@ impl<T: Material> Model<T> {
 
     /// Retrieve the segments of the model
     ///
-    /// Can be useful for changing a segment's material. 
+    /// Can be useful for changing a segment's material.
     ///
     /// # Example
     ///
     /// ```
     /// let segment = self.get_segments_mut().get_mut(0)?;
-    /// 
+    ///
     /// // Modify the material that belongs to the segment
     /// segment.get_material_mut();
     /// ```

@@ -1,15 +1,15 @@
-use glium::backend::Facade;
-use std::path::PathBuf;
-use opengl_render::ibl::Ibl;
 use cgmath::Rad;
+use glium::backend::Facade;
 use opengl_render::camera::Camera;
 use opengl_render::cubemap_loader::CubemapLoader;
+use opengl_render::ibl::Ibl;
 use opengl_render::ibl::{IrradianceConverter, Prefilter, BRDF};
 use opengl_render::material::{Equirectangle, SkyboxMat, PBR};
 use opengl_render::pbr_model::PbrModel;
 use opengl_render::skybox::Skybox;
 use opengl_render::support::System;
 use opengl_render::{glium::Surface, renderer::Renderer};
+use std::path::PathBuf;
 
 fn main() {
     // Path of the equirectangular texture that will be converted to a cubemap
@@ -33,17 +33,19 @@ fn main() {
     // Convert an equirectangular image into a cubemap and store it to the file system
     // This generated cubemap will be used as the skybox
     let compute = Equirectangle::load_from_fs(&facade);
-    compute.compute_from_fs_hdr(
-        skybox_file,
-        ibl_dir.join("cubemap/"),
-        "png",
-        &facade,
-        Camera::new(Rad(std::f32::consts::PI * 0.5), 1024, 1024).into(),
-    );
+    compute
+        .compute_from_fs_hdr(
+            skybox_file,
+            ibl_dir.join("cubemap/"),
+            "png",
+            &facade,
+            Camera::new(Rad(std::f32::consts::PI * 0.5), 1024, 1024).into(),
+        )
+        .unwrap();
 
     //
     // Here we will generate the irradiance map, prefilter map, and brdf texture
-    // 
+    //
     // The irradiance map maps the light output from the skybox to use as ambient light,
     // The prefilter map is used for reflections
     // The brdf is the same for all skyboxes, we just generate it to make sure that it exists
@@ -55,17 +57,22 @@ fn main() {
     let brdf_shader = BRDF::new(&facade);
 
     // Load the skybox again to generate the maps
-    let ibl_cubemap = CubemapLoader::load_from_fs(
-        ibl_dir.join("cubemap/"),
-        "png",
-        &facade,
-    );
+    let ibl_cubemap =
+        CubemapLoader::load_from_fs(ibl_dir.join("cubemap/"), "png", &facade).unwrap();
 
     // Generate the maps and store them to the file system
-    opengl_render::ibl::generate_ibl_from_cubemap(&facade, &ibl_cubemap, ibl_dir.clone(), irradiance_converter, prefilter_shader, brdf_shader);
+    opengl_render::ibl::generate_ibl_from_cubemap(
+        &facade,
+        &ibl_cubemap,
+        ibl_dir.clone(),
+        irradiance_converter,
+        prefilter_shader,
+        brdf_shader,
+    )
+    .unwrap();
 
     // Load the skybox from the file system
-    let skybox_mat = SkyboxMat::load_from_fs(&facade, ibl_dir.join("cubemap/"), "png");
+    let skybox_mat = SkyboxMat::load_from_fs(&facade, ibl_dir.join("cubemap/"), "png").unwrap();
     // Will hold the generated maps
     let mut skybox = Skybox::new(&facade, skybox_mat);
 
@@ -74,7 +81,7 @@ fn main() {
         prefilter,
         irradiance_map: ibl,
         brdf,
-    } = opengl_render::ibl::load_ibl_fs(&facade, ibl_dir);
+    } = opengl_render::ibl::load_ibl_fs(&facade, ibl_dir).unwrap();
 
     // Assign irradiance map, prefilter map and brdf to the skybox wrapper
     skybox.set_ibl(Some(ibl));
@@ -89,13 +96,7 @@ fn main() {
     //
 
     // This doesn't have to be a vec, but it makes loading multiple models more convenient
-    let mut models = vec![
-        PbrModel::load_from_fs(
-            model_dir.clone(),
-            &facade,
-            pbr.clone(),
-        ).unwrap()
-    ];
+    let mut models = vec![PbrModel::load_from_fs(model_dir.clone(), &facade, pbr.clone()).unwrap()];
 
     models[0].relative_move([0.0, 0.0, 4.0]);
 
@@ -142,10 +143,10 @@ fn main() {
             scene.finish(&mut frame.into());
 
             for model in &mut models {
-                model.relative_rotate([Rad(0.0),Rad( 0.001 * delta_ms), Rad(0.0)]);
+                model.relative_rotate([Rad(0.0), Rad(0.001 * delta_ms), Rad(0.0)]);
             }
         },
         // Gui loop
-        |_egui_ctx| {}
+        |_egui_ctx| {},
     );
 }

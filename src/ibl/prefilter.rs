@@ -1,5 +1,6 @@
 use glium::{backend::Facade, Program};
-use std::path::PathBuf;
+use std::error::Error;
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::camera::Camera;
@@ -13,29 +14,40 @@ pub struct Prefilter {
 impl Prefilter {
     const MAX_MIP_LEVELS: u32 = 5;
     pub fn load(facade: &impl Facade) -> Self {
-        let program = crate::material::insert_program!("../shaders/prefilter/vertex.glsl", "../shaders/prefilter/fragment.glsl", facade);
+        let program = crate::material::insert_program!(
+            "../shaders/prefilter/vertex.glsl",
+            "../shaders/prefilter/fragment.glsl",
+            facade
+        );
 
         Self {
             program: Arc::new(program),
         }
     }
 
-    pub fn calculate_to_fs(
+    pub fn calculate_to_fs<P>(
         &self,
         cubemap: &CubemapType,
-        destination_dir: PathBuf,
+        destination_dir: P,
         extension: &str,
         facade: &impl Facade,
         camera: Camera,
-    ) {
-        let output_size = (128, 128);
+    ) -> Result<(), Box<dyn Error>>
+    where
+        P: AsRef<Path>,
+    {
+        let destination_dir = destination_dir.as_ref().to_path_buf();
+        let output_size = (1024, 1024);
 
         let cubemap_render = CubemapRender::new(facade);
 
         let mip_levels = Self::MAX_MIP_LEVELS;
 
         for level in 0..mip_levels as i32 {
-            let output_size = ((output_size.0 as f32 * (0.5f32).powi(level)) as u32, (output_size.1 as f32 * (0.5f32).powi(level)) as u32);
+            let output_size = (
+                (output_size.0 as f32 * (0.5f32).powi(level)) as u32,
+                (output_size.1 as f32 * (0.5f32).powi(level)) as u32,
+            );
             let generate_uniforms = |projection, view| {
                 uniform! {
                     environment_map: cubemap,
@@ -52,8 +64,9 @@ impl Prefilter {
                 camera,
                 generate_uniforms,
                 &*self.program,
-            );
-
+            )?;
         }
+
+        Ok(())
     }
 }
