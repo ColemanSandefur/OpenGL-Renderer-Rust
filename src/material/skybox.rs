@@ -1,13 +1,15 @@
 use crate::cubemap_loader::{CubemapLoader, CubemapType};
 use crate::renderer::{Renderable, SceneData};
+use cgmath::Matrix4;
+use cgmath::Rad;
 use glium::backend::Facade;
 use glium::index::IndicesSource;
 use glium::vertex::VerticesSource;
 use glium::{BackfaceCullingMode, DrawParameters, Program};
 use std::any::Any;
+use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::error::Error;
 
 use super::Material;
 
@@ -19,12 +21,13 @@ use super::Material;
 /// that you clone the `SkyboxMat` instead of creating a new one** since the methods `load_from_fs`
 /// and `load_from_cubemap` recompile the shader every time. After cloning you can just set the
 /// skybox using `set_cubemap`.
-/// 
+///
 /// [`RenderScene`]: crate::renderer::RenderScene
 #[derive(Clone)]
 pub struct SkyboxMat {
     program: Arc<Program>,
     skybox: Arc<CubemapType>,
+    pub rotation: [[f32; 4]; 4],
 }
 
 impl SkyboxMat {
@@ -33,7 +36,11 @@ impl SkyboxMat {
         directory: impl Into<PathBuf>,
         extension: &str,
     ) -> Result<Self, Box<dyn Error>> {
-        let program = crate::material::insert_program!("../shaders/skybox/vertex.glsl", "../shaders/skybox/fragment.glsl", facade);
+        let program = crate::material::insert_program!(
+            "../shaders/skybox/vertex.glsl",
+            "../shaders/skybox/fragment.glsl",
+            facade
+        );
 
         println!("Loading cubemap");
         //let cubemap = CubemapLoader::load_from_fs_hdr("hdr_cubemap/".into(), "hdr", facade);
@@ -43,34 +50,40 @@ impl SkyboxMat {
         Ok(Self {
             program: Arc::new(program),
             skybox: Arc::new(cubemap),
+            rotation: Matrix4::from_angle_y(Rad(0.0)).into(),
         })
     }
 
     // To be reimplemented
     //pub fn load_from_memory(
-        //facade: &impl Facade,
-        //images: Vec<Vec<f32>>,
-        //width: u32,
-        //height: u32,
+    //facade: &impl Facade,
+    //images: Vec<Vec<f32>>,
+    //width: u32,
+    //height: u32,
     //) -> Self {
-        //let program = crate::material::load_program(facade, "shaders/skybox/".into());
+    //let program = crate::material::load_program(facade, "shaders/skybox/".into());
 
-        //println!("Loading cubemap");
-        //let cubemap = CubemapLoader::load_from_memory_hdr(images, width, height, facade);
-        //println!("Finished loading cubemap");
+    //println!("Loading cubemap");
+    //let cubemap = CubemapLoader::load_from_memory_hdr(images, width, height, facade);
+    //println!("Finished loading cubemap");
 
-        //Self {
-            //program: Arc::new(program),
-            //skybox: Arc::new(cubemap),
-        //}
+    //Self {
+    //program: Arc::new(program),
+    //skybox: Arc::new(cubemap),
+    //}
     //}
 
     pub fn load_from_cubemap(facade: &impl Facade, cubemap: CubemapType) -> Self {
-        let program = crate::material::insert_program!("../shaders/skybox/vertex.glsl", "../shaders/skybox/fragment.glsl", facade);
+        let program = crate::material::insert_program!(
+            "../shaders/skybox/vertex.glsl",
+            "../shaders/skybox/fragment.glsl",
+            facade
+        );
 
         Self {
             program: Arc::new(program),
             skybox: Arc::new(cubemap),
+            rotation: Matrix4::from_angle_y(Rad(0.0)).into(),
         }
     }
 
@@ -101,6 +114,7 @@ impl Material for SkyboxMat {
             view: position,
             camera_pos: camera_pos,
             skybox: &**cubemap,
+            model: self.rotation
         };
 
         surface

@@ -1,8 +1,10 @@
 use crate::cubemap_loader::CubemapType;
-use glium::texture::Texture2d;
 use crate::renderer::RenderScene;
+use cgmath::Matrix4;
+use cgmath::Rad;
 use glium::backend::Facade;
 use glium::index::NoIndices;
+use glium::texture::Texture2d;
 use glium::VertexBuffer;
 
 use crate::material::SkyboxMat;
@@ -38,7 +40,7 @@ fn vertex(x: f32, y: f32, z: f32) -> Vertex {
 }
 
 impl Skybox {
-    pub fn new(facade: &impl Facade, skybox: SkyboxMat) -> Self {
+    pub fn new(facade: &impl Facade, mut skybox: SkyboxMat) -> Self {
         let vertex_buffer = VertexBuffer::new(
             facade,
             &[
@@ -82,6 +84,7 @@ impl Skybox {
         )
         .unwrap();
         let index_buffer = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
+        skybox.rotation = Matrix4::from_angle_y(Rad(std::f32::consts::FRAC_PI_2)).into();
 
         Self {
             index_buffer,
