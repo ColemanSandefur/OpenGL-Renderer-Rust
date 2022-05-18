@@ -1,3 +1,4 @@
+use egui::CtxRef;
 use glium::glutin;
 use glium::Display;
 use glium::Frame;
@@ -11,9 +12,21 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::time::Instant;
 
+pub struct SystemInfo<'a> {
+    pub last_frame: &'a Instant,
+    pub delta: &'a Duration,
+    pub target: &'a mut Frame,
+    pub display: &'a Rc<Display>,
+    pub control_flow: &'a mut ControlFlow,
+    pub event: &'a Event<'a, ()>,
+    pub egui_ctx: &'a CtxRef,
+}
+
 pub struct System {
     pub event_loop: EventLoop<()>,
     pub display: Rc<Display>,
+    render_events: Vec<Box<dyn FnMut(&mut SystemInfo<'_>)>>,
+    event_handlers: Vec<Box<dyn FnMut(&Event<'_, ()>, &mut ControlFlow)>>,
 }
 
 impl System {
@@ -28,7 +41,7 @@ impl System {
             .with_depth_buffer(24)
             .with_multisampling(16)
             .with_vsync(false)
-            .with_double_buffer(Some(true))
+            //.with_double_buffer(Some(true))
             .with_srgb(true)
             .with_hardware_acceleration(Some(true));
         let builder = WindowBuilder::new()
@@ -46,18 +59,30 @@ impl System {
         Self {
             event_loop,
             display,
+            render_events: Vec::new(),
+            event_handlers: Vec::new(),
         }
     }
 
-    pub fn main_loop(
-        self,
-        mut event_loop_fn: impl FnMut(&Event<'_, ()>, &mut ControlFlow) + 'static,
-        mut draw_fn: impl FnMut(&mut Frame, Duration, &egui::CtxRef) + 'static,
-        mut gui_fn: impl FnMut(&egui::CtxRef) + 'static,
+    /// Subscribe a function to be ran every render iteration
+    pub fn subscribe_render(&mut self, event: impl FnMut(&mut SystemInfo<'_>) + 'static) {
+        self.render_events.push(Box::new(event));
+    }
+
+    /// Subscribe a function to be ran every render iteration
+    pub fn subscribe_event_handler(
+        &mut self,
+        event: impl FnMut(&Event<'_, ()>, &mut ControlFlow) + 'static,
     ) {
+        self.event_handlers.push(Box::new(event));
+    }
+
+    pub fn main_loop(self) {
         let System {
             event_loop,
             display,
+            mut render_events,
+            mut event_handlers,
             ..
         } = self;
 
@@ -65,26 +90,33 @@ impl System {
         let mut egui_glium = egui_glium::EguiGlium::new(&display);
 
         event_loop.run(move |event, _, control_flow| {
-            event_loop_fn(&event, control_flow);
+            for handler in &mut event_handlers {
+                handler(&event, control_flow);
+            }
 
             match event {
                 Event::RedrawRequested(_) => {
                     let mut target = display.draw();
-
-                    target.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
-
                     let now = Instant::now();
 
                     let delta = now - last_frame;
 
-                    // Render behind egui
+                    target.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
 
-                    // Render egui
                     let (_repaint, shapes) = egui_glium.run(&display, |egui_ctx| {
-                        draw_fn(&mut target, delta, egui_ctx);
-                        gui_fn(egui_ctx);
+                        let mut info = SystemInfo {
+                            last_frame: &last_frame,
+                            delta: &delta,
+                            target: &mut target,
+                            display: &display,
+                            control_flow,
+                            event: &event,
+                            egui_ctx,
+                        };
+                        for event in &mut render_events {
+                            event(&mut info)
+                        }
                     });
-
                     egui_glium.paint(&display, &mut target, shapes);
 
                     target.finish().expect("Failed to swap buffers");
@@ -97,7 +129,7 @@ impl System {
                     ..
                 } => *control_flow = glutin::event_loop::ControlFlow::Exit,
 
-                Event::WindowEvent {event, ..} => {
+                Event::WindowEvent { event, .. } => {
                     use glutin::event::WindowEvent;
 
                     if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {

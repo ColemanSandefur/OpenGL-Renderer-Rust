@@ -7,7 +7,7 @@ use opengl_render::ibl::{IrradianceConverter, Prefilter, BRDF};
 use opengl_render::material::{Equirectangle, SkyboxMat, PBR};
 use opengl_render::pbr_model::PbrModel;
 use opengl_render::skybox::Skybox;
-use opengl_render::support::System;
+use opengl_render::support::{System, SystemInfo};
 use opengl_render::{glium::Surface, renderer::Renderer};
 use std::path::PathBuf;
 
@@ -22,7 +22,7 @@ fn main() {
     let model_dir = PathBuf::from("./examples/models/primitives/sphere.glb");
 
     // Create the window and opengl instance
-    let display = System::init("renderer");
+    let mut display = System::init("renderer");
     let facade = display.display.get_context().clone();
 
     let light_pos = [0.0, 0.4, -10.0];
@@ -102,51 +102,49 @@ fn main() {
 
     let camera_pos = [0.0, 0.0, 0.0];
 
-    display.main_loop(
-        // Event loop
-        move |_, _| {},
-        // Render loop
-        move |frame, delta_time, _egui_ctx| {
-            // Time between frames should be used when moving or rotating objects
-            let delta_ms = delta_time.as_micros() as f32 / 1000.0;
+    display.subscribe_render(move |sys_info| {
+        let SystemInfo { target, delta, .. } = sys_info;
+        let delta_time = delta;
+        let frame = target;
+        // Time between frames should be used when moving or rotating objects
+        let delta_ms = delta_time.as_micros() as f32 / 1000.0;
 
-            // To render a frame, we must begin a new scene.
-            // The scene will keep track of variables that apply to the whole scene, like the
-            // camera, and skybox.
-            let mut scene = renderer.begin_scene();
+        // To render a frame, we must begin a new scene.
+        // The scene will keep track of variables that apply to the whole scene, like the
+        // camera, and skybox.
+        let mut scene = renderer.begin_scene();
 
-            // Create a camera with a 60 degree field of view
-            let (width, height) = frame.get_dimensions();
-            let camera = Camera::new(Rad(std::f32::consts::PI / 3.0), width, height);
+        // Create a camera with a 60 degree field of view
+        let (width, height) = frame.get_dimensions();
+        let camera = Camera::new(Rad(std::f32::consts::PI / 3.0), width, height);
 
-            // Set scene variables
-            scene.set_camera(camera.get_matrix().into());
-            scene.set_camera_pos(camera_pos);
-            scene.set_skybox(Some(&skybox));
-            scene
-                .get_scene_data_mut()
-                .get_raw_lights_mut()
-                .add_light(light_pos, light_color);
+        // Set scene variables
+        scene.set_camera(camera.get_matrix().into());
+        scene.set_camera_pos(camera_pos);
+        scene.set_skybox(Some(&skybox));
+        scene
+            .get_scene_data_mut()
+            .get_raw_lights_mut()
+            .add_light(light_pos, light_color);
 
-            // send items to be rendered
-            // IMPORTANT: you must set the camera position before submitting an object to be
-            // rendered. This is because when I add LOD support, it will use the scene's camera
-            // position to determine what LOD it should use.
-            for model in &models {
-                model.render(&mut scene);
-            }
+        // send items to be rendered
+        // IMPORTANT: you must set the camera position before submitting an object to be
+        // rendered. This is because when I add LOD support, it will use the scene's camera
+        // position to determine what LOD it should use.
+        for model in &models {
+            model.render(&mut scene);
+        }
 
-            // Render items
-            // To render the scene you must give the scene a place to render everything. In order
-            // to render to the frame we must first convert it to the Renderable enum, then you can
-            // render the scene.
-            scene.finish(&mut frame.into());
+        // Render items
+        // To render the scene you must give the scene a place to render everything. In order
+        // to render to the frame we must first convert it to the Renderable enum, then you can
+        // render the scene.
+        scene.finish(&mut (*frame).into());
 
-            for model in &mut models {
-                model.relative_rotate([Rad(0.0), Rad(0.001 * delta_ms), Rad(0.0)]);
-            }
-        },
-        // Gui loop
-        |_egui_ctx| {},
-    );
+        for model in &mut models {
+            model.relative_rotate([Rad(0.0), Rad(0.001 * delta_ms), Rad(0.0)]);
+        }
+    });
+
+    display.main_loop();
 }

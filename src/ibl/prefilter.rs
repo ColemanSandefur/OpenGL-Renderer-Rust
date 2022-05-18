@@ -38,7 +38,8 @@ impl Prefilter {
     {
         let destination_dir = destination_dir.as_ref().to_path_buf();
         //let output_size = (1024, 1024);
-        let output_size = (512, 512);
+        //let output_size = (512, 512);
+        let output_size = (128, 128);
 
         let cubemap_render = CubemapRender::new(facade);
 

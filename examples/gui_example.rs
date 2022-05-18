@@ -9,6 +9,7 @@ use opengl_render::material::{Equirectangle, SkyboxMat, PBR};
 use opengl_render::pbr_model::PbrModel;
 use opengl_render::skybox::Skybox;
 use opengl_render::support::System;
+use opengl_render::support::SystemInfo;
 use opengl_render::{glium::Surface, renderer::Renderer};
 use std::path::PathBuf;
 
@@ -23,7 +24,7 @@ fn main() {
     let model_dir = PathBuf::from("./examples/models/primitives/sphere.glb");
 
     // Create the window and opengl instance
-    let display = System::init("renderer");
+    let mut display = System::init("renderer");
 
     let facade = display.display.get_context().clone();
 
@@ -111,98 +112,100 @@ fn main() {
     // Will hold new models that will be added to models next frame
     let mut new_models = Vec::new();
 
-    display.main_loop(
-        // Event loop
-        move |_, _| {},
-        // Render loop
-        move |frame, delta_time, egui_ctx| {
-            // Time between frames should be used when moving or rotating objects
-            let _delta_ms = delta_time.as_micros() as f32 / 1000.0;
+    display.subscribe_render(move |sys_info| {
+        //frame, delta_time, egui_ctx
+        let SystemInfo {
+            target,
+            delta,
+            egui_ctx,
+            ..
+        } = sys_info;
+        let delta_time = delta;
+        let frame = target;
+        // Time between frames should be used when moving or rotating objects
+        let _delta_ms = delta_time.as_micros() as f32 / 1000.0;
 
-            // To render a frame, we must begin a new scene.
-            // The scene will keep track of variables that apply to the whole scene, like the
-            // camera, and skybox.
-            let mut scene = renderer.begin_scene();
+        // To render a frame, we must begin a new scene.
+        // The scene will keep track of variables that apply to the whole scene, like the
+        // camera, and skybox.
+        let mut scene = renderer.begin_scene();
 
-            // Create a camera with a 60 degree field of view
-            let (width, height) = frame.get_dimensions();
-            let camera = Camera::new(Rad(std::f32::consts::PI / 3.0), width, height);
+        // Create a camera with a 60 degree field of view
+        let (width, height) = frame.get_dimensions();
+        let camera = Camera::new(Rad(std::f32::consts::PI / 3.0), width, height);
 
-            // Set scene variables
-            scene.set_camera(camera.get_matrix().into());
-            scene.set_camera_pos(camera_pos);
-            scene.set_skybox(Some(&skybox));
-            scene
-                .get_scene_data_mut()
-                .get_raw_lights_mut()
-                .add_light(light_pos, light_color);
+        // Set scene variables
+        scene.set_camera(camera.get_matrix().into());
+        scene.set_camera_pos(camera_pos);
+        scene.set_skybox(Some(&skybox));
+        scene
+            .get_scene_data_mut()
+            .get_raw_lights_mut()
+            .add_light(light_pos, light_color);
 
-            // new_models is a buffer of new objects to be rendered
-            models.append(&mut new_models);
+        // new_models is a buffer of new objects to be rendered
+        models.append(&mut new_models);
 
-            // send items to be rendered
-            // IMPORTANT: you must set the camera position before submitting an object to be
-            // rendered. This is because when I add LOD support, it will use the scene's camera
-            // position to determine what LOD it should use.
-            for model in &models {
-                model.render(&mut scene);
-            }
+        // send items to be rendered
+        // IMPORTANT: you must set the camera position before submitting an object to be
+        // rendered. This is because when I add LOD support, it will use the scene's camera
+        // position to determine what LOD it should use.
+        for model in &models {
+            model.render(&mut scene);
+        }
 
-            // Render items
-            // To render the scene you must give the scene a place to render everything. In order
-            // to render to the frame we must first convert it to the Renderable enum, then you can
-            // render the scene.
-            scene.finish(&mut frame.into());
+        // Render items
+        // To render the scene you must give the scene a place to render everything. In order
+        // to render to the frame we must first convert it to the Renderable enum, then you can
+        // render the scene.
+        scene.finish(&mut (*frame).into());
 
-            // Add menu bar to the screen
-            egui::TopBottomPanel::top("title_bar").show(egui_ctx, |ui| {
-                // Open model
-                if ui.button("open").clicked() {
-                    if let Some(files) = rfd::FileDialog::new().pick_files() {
-                        for path in files {
-                            if let Ok(mut model) =
-                                PbrModel::load_from_fs(path, &facade, pbr.clone())
-                            {
-                                // Move the model off of the camera so you can actually see it
-                                model.relative_move([0.0, 0.0, 4.0]);
-                                models.push(model);
-                            }
+        // Add menu bar to the screen
+        egui::TopBottomPanel::top("title_bar").show(egui_ctx, |ui| {
+            // Open model
+            if ui.button("open").clicked() {
+                if let Some(files) = rfd::FileDialog::new().pick_files() {
+                    for path in files {
+                        if let Ok(mut model) = PbrModel::load_from_fs(path, &facade, pbr.clone()) {
+                            // Move the model off of the camera so you can actually see it
+                            model.relative_move([0.0, 0.0, 4.0]);
+                            models.push(model);
                         }
                     }
                 }
+            }
+        });
+
+        // List all models in the side panel
+        egui::SidePanel::new(egui::panel::Side::Left, "Models").show(egui_ctx, |ui| {
+            egui::ScrollArea::new([false, true]).show(ui, |ui| {
+                // Holds indices for models to be removed
+                let mut removed = Vec::new();
+
+                for i in 0..models.len() {
+                    let model = &mut models[i];
+
+                    egui::CollapsingHeader::new(format!("Object {}", i)).show(ui, |ui| {
+                        model.debug(ui);
+
+                        // mark item for removal
+                        if ui.button("delete").clicked() {
+                            removed.push(i);
+                        }
+
+                        if ui.button("clone").clicked() {
+                            new_models.push(model.clone());
+                        }
+                    });
+                }
+
+                // Remove items from vec (from back to front to not mess up indexing)
+                for i in removed.len() - 1..=0 {
+                    models.remove(removed[i]);
+                }
             });
+        });
+    });
 
-            // List all models in the side panel
-            egui::SidePanel::new(egui::panel::Side::Left, "Models").show(egui_ctx, |ui| {
-                egui::ScrollArea::new([false, true]).show(ui, |ui| {
-                    // Holds indices for models to be removed
-                    let mut removed = Vec::new();
-
-                    for i in 0..models.len() {
-                        let model = &mut models[i];
-
-                        egui::CollapsingHeader::new(format!("Object {}", i)).show(ui, |ui| {
-                            model.debug(ui);
-
-                            // mark item for removal
-                            if ui.button("delete").clicked() {
-                                removed.push(i);
-                            }
-
-                            if ui.button("clone").clicked() {
-                                new_models.push(model.clone());
-                            }
-                        });
-                    }
-
-                    // Remove items from vec (from back to front to not mess up indexing)
-                    for i in removed.len() - 1..=0 {
-                        models.remove(removed[i]);
-                    }
-                });
-            });
-        },
-        // Gui loop
-        move |_egui_ctx| {},
-    );
+    display.main_loop();
 }

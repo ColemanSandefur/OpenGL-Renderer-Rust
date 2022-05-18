@@ -13,6 +13,7 @@ use cgmath::Rad;
 use cgmath::Vector3;
 use glium::backend::Facade;
 use glium::{IndexBuffer, VertexBuffer};
+use rayon::prelude::*;
 use russimp::material::PropertyTypeInfo::FloatArray;
 use russimp::scene::PostProcess;
 use russimp::scene::Scene;
@@ -64,8 +65,6 @@ impl PbrModelSegment {
         self.material = material;
     }
 
-    //vertex_buffer: VertexBuffer<Vertex>,
-    //index_buffer: IndexBuffer<u32>,
     pub fn get_vertex_buffer(&self) -> &VertexBuffer<Vertex> {
         &self.vertex_buffer
     }
@@ -165,35 +164,35 @@ impl PbrModel {
         let mut segments = Vec::new();
 
         for mesh in scene.meshes {
-            let mut vertices: Vec<Vertex> = Vec::new();
-            let mut indices: Vec<u32> = Vec::new();
+            let vertices = (0..mesh.vertices.len())
+                .into_par_iter()
+                .map(|index| {
+                    let vertex = mesh.vertices[index as usize];
+                    let position: [f32; 3] = [vertex.x, vertex.y, vertex.z];
+                    let normal_vec = mesh.normals[index as usize];
+                    let normal = [normal_vec.x, normal_vec.y, normal_vec.z];
+                    let tex_coords = match mesh.texture_coords[0].as_ref() {
+                        Some(texture_coords) => {
+                            let vec3 = texture_coords[index as usize];
+                            [vec3.x, vec3.y]
+                        }
+                        None => [0.0; 2],
+                    };
 
-            for index in 0..mesh.vertices.len() {
-                let vertex = mesh.vertices[index as usize];
-                let position: [f32; 3] = [vertex.x, vertex.y, vertex.z];
-                let normal_vec = mesh.normals[index as usize];
-                let normal = [normal_vec.x, normal_vec.y, normal_vec.z];
-                let tex_coords = match mesh.texture_coords[0].as_ref() {
-                    Some(texture_coords) => {
-                        let vec3 = texture_coords[index as usize];
-                        [vec3.x, vec3.y]
-                    }
-                    None => [0.0; 2],
-                };
+                    return Vertex {
+                        position,
+                        normal,
+                        tex_coords,
+                        ..Default::default()
+                    };
+                })
+                .collect::<Vec<_>>();
 
-                vertices.push(Vertex {
-                    position,
-                    normal,
-                    tex_coords,
-                    ..Default::default()
-                });
-            }
-
-            for face in mesh.faces {
-                for index in face.0 {
-                    indices.push(index);
-                }
-            }
+            let indices = mesh
+                .faces
+                .into_par_iter()
+                .flat_map(|face| face.0.into_par_iter())
+                .collect::<Vec<_>>();
 
             let index_buffer =
                 IndexBuffer::new(facade, glium::index::PrimitiveType::TrianglesList, &indices)?;
@@ -234,16 +233,6 @@ impl PbrModel {
                 }
             }
             material.set_pbr_params(PBRTextures::from_params(basic_mat, facade));
-
-            // let bounds = {
-            //     let min = mesh.aabb.min;
-            //     let max = mesh.aabb.max;
-
-            //     (
-            //         [min.x, min.y, min.z].into(),
-            //         [max.x, max.y, max.z].into(),
-            //     )
-            // };
 
             segments.push(PbrModelSegment::new(vertex_buffer, index_buffer, material));
         }
