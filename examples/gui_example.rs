@@ -35,6 +35,7 @@ fn main() {
 
     // Convert an equirectangular image into a cubemap and store it to the file system
     // This generated cubemap will be used as the skybox
+    println!("Converting image to cubemap");
     let compute = Equirectangle::load_from_fs(&facade);
     compute
         .compute_from_fs_hdr(
@@ -45,6 +46,7 @@ fn main() {
             Camera::new(Rad(std::f32::consts::PI * 0.5), 1024, 1024).into(),
         )
         .unwrap();
+    println!("Finished converting image to cubemap");
 
     //
     // Here we will generate the irradiance map, prefilter map, and brdf texture
@@ -59,6 +61,7 @@ fn main() {
     let prefilter_shader = Prefilter::load(&facade);
     let brdf_shader = BRDF::new(&facade);
 
+    println!("Generating image based lighting");
     // Load the skybox again to generate the maps
     let ibl_cubemap =
         CubemapLoader::load_from_fs(ibl_dir.join("cubemap/"), "png", &facade).unwrap();
@@ -73,7 +76,9 @@ fn main() {
         brdf_shader,
     )
     .unwrap();
+    println!("Finished generating image based lighting");
 
+    println!("Loading skybox");
     // Load the skybox from the file system
     let skybox_mat = SkyboxMat::load_from_fs(&facade, ibl_dir.join("cubemap/"), "png").unwrap();
     // Will hold the generated maps
@@ -90,6 +95,7 @@ fn main() {
     skybox.set_ibl(Some(ibl));
     skybox.set_prefilter(Some(prefilter));
     skybox.set_brdf(Some(brdf));
+    println!("Finished loading skybox");
 
     // Load the Physically Based Rendering shader from the file system
     let pbr = PBR::load_from_fs(&facade);
@@ -200,12 +206,16 @@ fn main() {
                 }
 
                 // Remove items from vec (from back to front to not mess up indexing)
-                for i in removed.len() - 1..=0 {
-                    models.remove(removed[i]);
+                if !removed.is_empty() {
+                    for i in removed.len() - 1..=0 {
+                        models.remove(removed[i]);
+                    }
                 }
             });
         });
     });
+
+    println!("Starting render loop");
 
     display.main_loop();
 }

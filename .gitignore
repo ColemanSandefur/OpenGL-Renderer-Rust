@@ -1,0 +1,5 @@
+target/
+examples/ibl/*/brdf.png
+examples/ibl/*/cubemap/
+examples/ibl/*/ibl_map/
+examples/ibl/*/prefilter/

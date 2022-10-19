@@ -42,10 +42,8 @@ impl SkyboxMat {
             facade
         );
 
-        println!("Loading cubemap");
         //let cubemap = CubemapLoader::load_from_fs_hdr("hdr_cubemap/".into(), "hdr", facade);
         let cubemap = CubemapLoader::load_from_fs(directory.into(), extension, facade)?;
-        println!("Finished loading cubemap");
 
         Ok(Self {
             program: Arc::new(program),

@@ -40,7 +40,7 @@ impl System {
         let context = glutin::ContextBuilder::new()
             .with_depth_buffer(24)
             .with_multisampling(16)
-            .with_vsync(false)
+            .with_vsync(true)
             //.with_double_buffer(Some(true))
             .with_srgb(true)
             .with_hardware_acceleration(Some(true));
