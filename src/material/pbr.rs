@@ -94,6 +94,7 @@ pub struct PBRTextures {
     pub metallic: Arc<Texture2d>,
     pub roughness: Arc<Texture2d>,
     pub ao: Arc<Texture2d>,
+    pub normal: Arc<Texture2d>,
     pub facade: Rc<Context>,
 }
 
@@ -106,6 +107,7 @@ impl PBRTextures {
             metallic: Arc::new(create_texture(facade, &[params.metallic; 3], 1, 1).unwrap()),
             roughness: Arc::new(create_texture(facade, &[params.roughness; 3], 1, 1).unwrap()),
             ao: Arc::new(create_texture(facade, &[params.ao; 3], 1, 1).unwrap()),
+            normal: Arc::new(create_texture(facade, &[0.5, 0.5, 1.0], 1, 1).unwrap()),
             facade: facade.get_context().clone(),
         }
     }
@@ -125,6 +127,10 @@ impl PBRTextures {
     pub fn set_ao_map(&mut self, map: Texture2d) {
         self.ao = Arc::new(map);
     }
+
+    pub fn set_normal_map(&mut self, map: Texture2d) {
+        self.normal = Arc::new(map);
+    }
 }
 
 impl DebugGUI for PBRTextures {
@@ -137,13 +143,19 @@ impl DebugGUI for PBRTextures {
          -> Option<Texture2d> {
             // Only display if texture is a 1x1 texture, else the texture shouldn't be able to be
             // modified by sliders
-            if texture.get_width() == 1 && texture.get_height().unwrap_or(1) == 1 {
+            {
                 let rgb: Vec<Vec<(u8, u8, u8, u8)>> = texture.read();
                 let mut pixel = rgb[0][0];
                 ui.label(name);
                 if ui.add(egui::Slider::new(&mut pixel.0, 0..=255)).changed() {
                     return TextureLoader::from_memory_rgb8(facade, &[pixel.0; 3], 1, 1).ok();
                 }
+                if ui.button("select").clicked() {
+                    if let Some(file) = rfd::FileDialog::new().pick_file() {
+                        return TextureLoader::from_fs(facade, &file).ok();
+                    }
+                }
+                ui.separator();
             }
 
             None
@@ -151,7 +163,7 @@ impl DebugGUI for PBRTextures {
 
         // Only display if texture is a 1x1 texture, else the texture shouldn't be able to be
         // modified by sliders
-        if self.albedo.get_width() == 1 && self.albedo.get_height().unwrap_or(1) == 1 {
+        {
             let rgb: Vec<Vec<(u8, u8, u8, u8)>> = self.albedo.read();
             let pixel = rgb[0][0];
             let mut pixel = [pixel.0, pixel.1, pixel.2];
@@ -162,6 +174,14 @@ impl DebugGUI for PBRTextures {
                     self.set_albedo_map(texture);
                 }
             }
+            if ui.button("select").clicked() {
+                if let Some(file) = rfd::FileDialog::new().pick_file() {
+                    if let Ok(texture) = TextureLoader::from_fs(&self.facade, &file) {
+                        self.set_albedo_map(texture);
+                    }
+                }
+            }
+            ui.separator();
         }
 
         if let Some(texture) = print_texture(&self.metallic, "Metallic", ui, &self.facade) {
@@ -172,6 +192,15 @@ impl DebugGUI for PBRTextures {
         }
         if let Some(texture) = print_texture(&self.ao, "Ao", ui, &self.facade) {
             self.set_ao_map(texture);
+        }
+
+        ui.label("Normal");
+        if ui.button("select").clicked() {
+            if let Some(file) = rfd::FileDialog::new().pick_file() {
+                if let Ok(texture) = TextureLoader::from_fs(&self.facade, &file) {
+                    self.set_normal_map(texture);
+                }
+            }
         }
     }
 }
@@ -266,6 +295,7 @@ impl Material for PBR {
                     metallic_map: &*self.pbr_params.metallic,
                     roughness_map: &*self.pbr_params.roughness,
                     ao_map: &*self.pbr_params.ao,
+                    normal_map: &*self.pbr_params.normal,
                     irradiance_map: skybox_obj.get_ibl().as_ref().unwrap(),
                     prefilter_map: prefilter,
                     brdf_lut: skybox_obj.get_brdf().as_ref().unwrap(),

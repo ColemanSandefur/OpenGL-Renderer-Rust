@@ -13,12 +13,29 @@ uniform sampler2D albedo_map;
 uniform sampler2D metallic_map;
 uniform sampler2D roughness_map;
 uniform sampler2D ao_map;
+uniform sampler2D normal_map;
 
 uniform samplerCube irradiance_map;
 uniform samplerCube prefilter_map;
 uniform sampler2D brdf_lut;
 
 const float PI = 3.14159265359;
+
+vec3 getNormalFromMap() {
+    vec3 tangentNormal = texture(normal_map, v_tex_coords).xyz * 2.0 - 1.0;
+
+    vec3 Q1  = dFdx(v_world_pos);
+    vec3 Q2  = dFdy(v_world_pos);
+    vec2 st1 = dFdx(v_tex_coords);
+    vec2 st2 = dFdy(v_tex_coords);
+
+    vec3 N   = normalize(v_normal);
+    vec3 T  = normalize(Q1*st2.t - Q2*st1.t);
+    vec3 B  = -normalize(cross(N, T));
+    mat3 TBN = mat3(T, B, N);
+
+    return normalize(TBN * tangentNormal);
+}
 
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness * roughness;
@@ -68,7 +85,7 @@ void main() {
     float roughness = texture(roughness_map, v_tex_coords).r;
     float ao = texture(ao_map, v_tex_coords).r;
 
-    vec3 N = v_normal;
+    vec3 N = getNormalFromMap();
     vec3 V = normalize(camera_pos - v_world_pos);
     vec3 R = reflect(V, N); 
 

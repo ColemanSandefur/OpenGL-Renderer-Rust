@@ -45,11 +45,38 @@ impl BRDF {
     where
         P: AsRef<Path>,
     {
+        let buffer_texture = self.calculate(facade)?;
+
+        // Store to fs
+        let mut output = Vec::new();
+        for pixel in buffer_texture.read_to_pixel_buffer().read()? {
+            output.push(pixel.0);
+            output.push(pixel.1);
+            output.push(pixel.2);
+            output.push(pixel.3);
+        }
+
+        let image_buffer =
+            ImageBuffer::from_raw(buffer_texture.width(), buffer_texture.height(), output)
+                .ok_or("Failed to create image buffer when saving to fs")?;
+        let output_image = DynamicImage::ImageRgba8(image_buffer);
+
+        output_image.save(output_file)?;
+
+        Ok(())
+    }
+    pub fn calculate(&self, facade: &impl Facade) -> Result<Texture2d, Box<dyn Error>> {
         const TARGET_RESOLUTION: (u32, u32) = (512, 512);
         let (width, height) = TARGET_RESOLUTION;
 
         // Buffers that will be written to
-        let buffer_texture = Texture2d::empty(facade, width, height)?;
+        let buffer_texture = Texture2d::empty_with_format(
+            facade,
+            glium::texture::UncompressedFloatFormat::F16F16F16,
+            glium::texture::MipmapsOption::NoMipmap,
+            width,
+            height,
+        )?;
         let buffer_depth = DepthTexture2d::empty(facade, width, height)?;
 
         // Makes the buffers writable
@@ -66,22 +93,7 @@ impl BRDF {
             &Default::default(),
         )?;
 
-        // Store to fs
-        let mut output = Vec::new();
-        for pixel in buffer_texture.read_to_pixel_buffer().read()? {
-            output.push(pixel.0);
-            output.push(pixel.1);
-            output.push(pixel.2);
-            output.push(pixel.3);
-        }
-
-        let image_buffer = ImageBuffer::from_raw(width, height, output)
-            .ok_or("Failed to create image buffer when saving to fs")?;
-        let output_image = DynamicImage::ImageRgba8(image_buffer);
-
-        output_image.save(output_file)?;
-
-        Ok(())
+        Ok(buffer_texture)
     }
 }
 
@@ -90,25 +102,25 @@ fn get_quad_vertices() -> Vec<Vertex> {
         Vertex {
             // Top Left
             position: [-1.0, 1.0, 0.0],
+            tex_coords: [0.0, 1.0],
+            ..Default::default()
+        },
+        Vertex {
+            // Bottom Left
+            position: [-1.0, -1.0, 0.0],
             tex_coords: [0.0, 0.0],
             ..Default::default()
         },
         Vertex {
             // Top Right
             position: [1.0, 1.0, 0.0],
-            tex_coords: [1.0, 0.0],
-            ..Default::default()
-        },
-        Vertex {
-            // Bottom Left
-            position: [-1.0, -1.0, 0.0],
-            tex_coords: [0.0, 1.0],
+            tex_coords: [1.0, 1.0],
             ..Default::default()
         },
         Vertex {
             // Bottom Right
             position: [1.0, -1.0, 0.0],
-            tex_coords: [1.0, 1.0],
+            tex_coords: [1.0, 0.0],
             ..Default::default()
         },
     ]
