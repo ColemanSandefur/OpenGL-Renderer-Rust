@@ -141,48 +141,64 @@ impl DebugGUI for PBRTextures {
                              ui: &mut egui::Ui,
                              facade: &Rc<Context>|
          -> Option<Texture2d> {
+            ui.label(name);
+
             // Only display if texture is a 1x1 texture, else the texture shouldn't be able to be
             // modified by sliders
-            {
-                let rgb: Vec<Vec<(u8, u8, u8, u8)>> = texture.read();
-                let mut pixel = rgb[0][0];
-                ui.label(name);
+            if texture.width() == 1 && texture.height() == 1 {
+                let rgb: Vec<(u8, u8, u8, u8)> =
+                    texture.read_to_pixel_buffer().read().unwrap_or(Vec::new());
+                let mut pixel = rgb[0];
                 if ui.add(egui::Slider::new(&mut pixel.0, 0..=255)).changed() {
                     return TextureLoader::from_memory_rgb8(facade, &[pixel.0; 3], 1, 1).ok();
                 }
-                if ui.button("select").clicked() {
-                    if let Some(file) = rfd::FileDialog::new().pick_file() {
-                        return TextureLoader::from_fs(facade, &file).ok();
-                    }
+            } else {
+                if ui.button("remove texture").clicked() {
+                    return TextureLoader::from_memory_rgb8(facade, &[255; 3], 1, 1).ok();
                 }
-                ui.separator();
             }
+            if ui.button("select").clicked() {
+                if let Some(file) = rfd::FileDialog::new().pick_file() {
+                    return TextureLoader::from_fs(facade, &file).ok();
+                }
+            }
+            ui.separator();
 
             None
         };
 
+        ui.label("Albedo");
         // Only display if texture is a 1x1 texture, else the texture shouldn't be able to be
         // modified by sliders
-        {
-            let rgb: Vec<Vec<(u8, u8, u8, u8)>> = self.albedo.read();
-            let pixel = rgb[0][0];
+        if self.albedo.width() == 1 && self.albedo.height() == 1 {
+            let rgb: Vec<(u8, u8, u8, u8)> = self
+                .albedo
+                .read_to_pixel_buffer()
+                .read()
+                .unwrap_or(Vec::new());
+            let pixel = rgb[0];
             let mut pixel = [pixel.0, pixel.1, pixel.2];
-            ui.label("Albedo");
 
             if DebugGUIFormat::rgb_byte(ui, &mut pixel).changed() {
                 if let Ok(texture) = TextureLoader::from_memory_rgb8(&self.facade, &pixel, 1, 1) {
                     self.set_albedo_map(texture);
                 }
             }
-            if ui.button("select").clicked() {
-                if let Some(file) = rfd::FileDialog::new().pick_file() {
-                    if let Ok(texture) = TextureLoader::from_fs(&self.facade, &file) {
-                        self.set_albedo_map(texture);
-                    }
+        } else {
+            if ui.button("remove texture").clicked() {
+                self.set_albedo_map(
+                    TextureLoader::from_memory_rgb8(&self.facade, &[255; 3], 1, 1).unwrap(),
+                );
+            }
+        }
+        if ui.button("select").clicked() {
+            if let Some(file) = rfd::FileDialog::new().pick_file() {
+                if let Ok(texture) = TextureLoader::from_fs(&self.facade, &file) {
+                    self.set_albedo_map(texture);
                 }
             }
-            ui.separator();
         }
+        ui.separator();
 
         if let Some(texture) = print_texture(&self.metallic, "Metallic", ui, &self.facade) {
             self.set_metallic_map(texture);
@@ -195,6 +211,13 @@ impl DebugGUI for PBRTextures {
         }
 
         ui.label("Normal");
+        if self.normal.width() > 1 && self.normal.height() > 1 {
+            if ui.button("remove texture").clicked() {
+                self.set_normal_map(
+                    TextureLoader::from_memory_rgb8(&self.facade, &[128, 128, 255], 1, 1).unwrap(),
+                );
+            }
+        }
         if ui.button("select").clicked() {
             if let Some(file) = rfd::FileDialog::new().pick_file() {
                 if let Ok(texture) = TextureLoader::from_fs(&self.facade, &file) {
@@ -278,6 +301,13 @@ impl Material for PBR {
         let skybox_obj = scene_data.get_skybox().unwrap();
         let skybox = skybox_obj.get_skybox().get_cubemap();
 
+        let brdf = skybox_obj
+            .get_brdf()
+            .as_ref()
+            .unwrap()
+            .sampled()
+            .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp);
+
         match &skybox_obj.get_prefilter().as_ref().unwrap() {
             &CubemapType::Cubemap(prefilter) => {
                 prefilter
@@ -298,7 +328,7 @@ impl Material for PBR {
                     normal_map: &*self.pbr_params.normal,
                     irradiance_map: skybox_obj.get_ibl().as_ref().unwrap(),
                     prefilter_map: prefilter,
-                    brdf_lut: skybox_obj.get_brdf().as_ref().unwrap(),
+                    brdf_lut: brdf,
                     skybox: &**skybox,
                 };
 

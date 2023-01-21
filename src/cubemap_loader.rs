@@ -10,7 +10,6 @@ use image::GenericImageView;
 use std::error::Error;
 use std::ops::Index;
 use std::path::PathBuf;
-use std::ptr::null;
 
 /// Different Cubemap types.
 ///

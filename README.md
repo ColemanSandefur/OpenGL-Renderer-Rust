@@ -36,11 +36,13 @@ The skybox(s) that are bundled with the examples are from the [sIBL Archive](htt
 
 # Screenshots
 
-![Mandalorian](screenshots/Mandalorian.png)
-
 ![Mandalorian-Reflection](screenshots/Mandalorian-Reflection.png)
 
+![Texture Example](screenshots/texture_example.png)
+
 ![Spheres](screenshots/Spheres.png)
+
+![Mandalorian](screenshots/Mandalorian.png)
 
 # Current architecture
 

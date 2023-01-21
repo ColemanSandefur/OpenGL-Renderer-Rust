@@ -1,5 +1,7 @@
 use cgmath::Rad;
 use glium::backend::Facade;
+use glium::framebuffer::SimpleFrameBuffer;
+use glium::Texture2d;
 use opengl_render::camera::Camera;
 use opengl_render::cubemap_loader::CubemapLoader;
 use opengl_render::gui::DebugGUI;
@@ -73,7 +75,7 @@ fn main() {
         ibl_dir.clone(),
         irradiance_converter,
         prefilter_shader,
-        brdf_shader,
+        brdf_shader.clone(),
     )
     .unwrap();
     println!("Finished generating image based lighting");
@@ -88,8 +90,10 @@ fn main() {
     let Ibl {
         prefilter,
         irradiance_map: ibl,
-        brdf,
+        brdf: _brdf,
     } = opengl_render::ibl::load_ibl_fs(&facade, ibl_dir).unwrap();
+
+    let brdf = brdf_shader.calculate(&facade).unwrap();
 
     // Assign irradiance map, prefilter map and brdf to the skybox wrapper
     skybox.set_ibl(Some(ibl));
@@ -129,7 +133,7 @@ fn main() {
         let delta_time = delta;
         let frame = target;
         // Time between frames should be used when moving or rotating objects
-        let _delta_ms = delta_time.as_micros() as f32 / 1000.0;
+        let delta_ms = delta_time.as_micros() as f32 / 1000.0;
 
         // To render a frame, we must begin a new scene.
         // The scene will keep track of variables that apply to the whole scene, like the
@@ -181,12 +185,58 @@ fn main() {
                 }
             }
         });
-
         // List all models in the side panel
         egui::SidePanel::new(egui::panel::Side::Left, "Models").show(egui_ctx, |ui| {
             egui::ScrollArea::new([false, true]).show(ui, |ui| {
                 // Holds indices for models to be removed
                 let mut removed = Vec::new();
+
+                ui.label(format!("{:.2} ms\t{:.2} fps", delta_ms, 1000.0 / delta_ms));
+                if ui.button("screenshot").clicked() {
+                    let (width, height) = frame.get_dimensions();
+                    let texture = Texture2d::empty(&facade, width, height).unwrap();
+                    let framebuffer = SimpleFrameBuffer::new(&facade, &texture).unwrap();
+
+                    framebuffer.blit_from_frame(
+                        &glium::Rect {
+                            left: 0,
+                            bottom: 0,
+                            width,
+                            height,
+                        },
+                        &glium::BlitTarget {
+                            left: 0,
+                            bottom: 0,
+                            width: width as i32,
+                            height: height as i32,
+                        },
+                        glium::uniforms::MagnifySamplerFilter::Nearest,
+                    );
+
+                    let pixel_buffer = texture.read_to_pixel_buffer();
+                    let pixel_data: Vec<(u8, u8, u8, u8)> =
+                        pixel_buffer.read_as_texture_1d().unwrap();
+
+                    std::thread::spawn(move || {
+                        let pixels = {
+                            let mut vec = Vec::with_capacity(pixel_data.len() * 4);
+                            for (r, g, b, a) in pixel_data {
+                                vec.push(r);
+                                vec.push(g);
+                                vec.push(b);
+                                vec.push(a);
+                            }
+                            vec
+                        };
+
+                        let image_buffer =
+                            image::ImageBuffer::from_raw(width, height, pixels).unwrap();
+
+                        let image = image::DynamicImage::ImageRgba8(image_buffer).flipv();
+                        image.save("screenshot.png").unwrap();
+                    });
+                }
+                ui.separator();
 
                 for i in 0..models.len() {
                     let model = &mut models[i];
