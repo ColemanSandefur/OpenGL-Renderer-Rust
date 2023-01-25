@@ -1,0 +1,27 @@
+[package]
+name = "opengl-renderer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[example]]
+name = "window_example"
+path = "examples/window_example.rs"
+
+[dependencies]
+egui = { version = "0.20.1", default-features = false, features = [
+  "bytemuck",
+] }
+egui-winit = { version = "0.20.1", default-features = false }
+egui_glium = "0.20.1"
+ahash = { version = "0.8.1", default-features = false, features = [
+  "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
+  "std",
+] }
+bytemuck = "1.7"
+glium = "0.32"
+
+nalgebra="0.32.1"
+
+russimp="2.0.2"
