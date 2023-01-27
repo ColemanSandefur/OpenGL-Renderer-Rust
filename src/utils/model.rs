@@ -1,10 +1,12 @@
 use crate::shaders::pbr::PBRSimple;
 use crate::shaders::pbr::PBRTextures;
-use crate::utils::texture_loader::TextureLoader;
+use crate::utils::positioning::Rotation;
 use crate::{renderer::RenderScene, shaders::pbr::PBR};
 use glium::backend::Facade;
 use glium::{IndexBuffer, VertexBuffer};
 use nalgebra::Matrix4;
+use nalgebra::Rotation3;
+use nalgebra::Vector3;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::ParallelIterator;
@@ -12,7 +14,6 @@ use russimp::scene::PostProcess;
 use russimp::scene::Scene;
 use std::error::Error;
 use std::path::Path;
-use std::rc::Rc;
 
 use crate::{shader::Shader, vertex::Vertex};
 
@@ -23,7 +24,8 @@ where
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: IndexBuffer<u32>,
     shader: S,
-    euler: [f32; 3],
+    euler: Rotation,
+    position: Vector3<f32>,
 }
 
 impl<S> Model<S>
@@ -109,45 +111,35 @@ impl ModelLoad for Model<PBR> {
             index_buffer,
             vertex_buffer,
             shader: pbr,
-            euler: [0.0, 0.0, 0.0],
+            euler: Rotation::from_euler_angles(0.0, 0.0, 0.0),
+            position: [0.0, 0.0, 0.0].into(),
         })
     }
 }
 
 impl Model<PBR> {
     pub fn debug_ui(&mut self, ui: &mut egui::Ui) -> egui::InnerResponse<()> {
+        let mut response = self.euler.debug_ui(ui).response;
+
         ui.horizontal(|ui| {
-            let mut angles = [
-                self.euler[0].to_degrees(),
-                self.euler[1].to_degrees(),
-                self.euler[2].to_degrees(),
-            ];
+            let labels = ["x: ", "y: ", "z: "];
 
-            let mut changed = false;
-            changed = ui
-                .add(egui::widgets::DragValue::new(&mut angles[0]).prefix("roll: "))
-                .changed()
-                || changed;
-            changed = ui
-                .add(egui::widgets::DragValue::new(&mut angles[1]).prefix("pitch: "))
-                .changed()
-                || changed;
-            changed = ui
-                .add(egui::widgets::DragValue::new(&mut angles[2]).prefix("yaw: "))
-                .changed()
-                || changed;
+            let mut widget = |value: &mut f32, label: &str| {
+                ui.add(egui::widgets::DragValue::new(value).prefix(label))
+            };
 
-            self.euler[0] = (angles[0] % 360.0).to_radians();
-            self.euler[1] = (angles[1] % 360.0).to_radians();
-            self.euler[2] = (angles[2] % 360.0).to_radians();
+            response |= {
+                widget(&mut self.position[0], labels[0])
+                    | widget(&mut self.position[1], labels[1])
+                    | widget(&mut self.position[2], labels[2])
+            };
+        });
 
-            if changed {
-                self.shader.set_model_mat(Matrix4::from_euler_angles(
-                    self.euler[0],
-                    self.euler[1],
-                    self.euler[2],
-                ));
-            }
-        })
+        if response.changed() {
+            self.shader
+                .set_model_mat(self.euler.get_matrix4().append_translation(&self.position));
+        };
+
+        egui::InnerResponse::new((), response)
     }
 }
