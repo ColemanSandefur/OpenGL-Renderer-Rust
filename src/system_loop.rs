@@ -26,6 +26,12 @@ impl SystemLoop {
     pub fn new(mut window: Window) -> Self {
         let event_loop = window.event_loop.take().unwrap();
         let egui_glium = egui_glium::EguiGlium::new(&window.display, &event_loop);
+
+        // Load raw opengl library for later use where glium doesn't provide needed functions
+        // Currently the only way to use cubemaps (that I can find) is to crate one with gl and
+        // then give it to glium
+        gl::load_with(|s| window.display.gl_window().get_proc_address(s));
+
         Self {
             window,
             render_handlers: Vec::new(),

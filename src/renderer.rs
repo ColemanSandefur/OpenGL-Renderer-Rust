@@ -15,8 +15,8 @@ use std::collections::HashMap;
 use glium::vertex::VerticesSource;
 use glium::{framebuffer::SimpleFrameBuffer, Frame};
 
-use crate::camera::Camera;
 use crate::shader::Shader;
+use crate::utils::camera::Camera;
 
 pub struct Renderer {
     polygons: u32,

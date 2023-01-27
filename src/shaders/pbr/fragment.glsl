@@ -87,7 +87,7 @@ void main()
     float roughness = texture(roughness_map, TexCoords).r;
     float ao        = texture(ao_map, TexCoords).r;
 
-    vec3 N = Normal;
+    vec3 N = getNormalFromMap();
     vec3 V = normalize(camPos - WorldPos);
 
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 

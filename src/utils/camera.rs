@@ -5,13 +5,13 @@ const WORLD_UP: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0);
 
 #[derive(Clone)]
 pub struct Camera {
-    pub forward: Vector3<f32>,
+    forward: Vector3<f32>,
     pub position: Vector3<f32>,
-    pub up: Vector3<f32>,
-    pub right: Vector3<f32>,
-    pub yaw: f32,
-    pub pitch: f32,
-    pub roll: f32,
+    up: Vector3<f32>,
+    right: Vector3<f32>,
+    yaw: f32,
+    pitch: f32,
+    roll: f32,
 }
 
 impl Camera {
@@ -29,6 +29,22 @@ impl Camera {
         s.update_vectors();
 
         s
+    }
+
+    pub fn get_yaw_rad(&self) -> f32 {
+        self.yaw
+    }
+    pub fn get_pitch_rad(&self) -> f32 {
+        self.pitch
+    }
+    pub fn set_yaw_rad(&mut self, yaw: f32) {
+        self.yaw = yaw;
+        self.update_vectors();
+    }
+
+    pub fn set_pitch_rad(&mut self, pitch: f32) {
+        self.pitch = pitch;
+        self.update_vectors();
     }
 
     fn update_vectors(&mut self) {

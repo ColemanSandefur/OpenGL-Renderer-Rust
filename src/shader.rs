@@ -4,6 +4,7 @@ use glium::backend::Facade;
 use glium::index::IndicesSource;
 use glium::vertex::VerticesSource;
 use glium::Program;
+use nalgebra::Matrix4;
 use std::any::Any;
 
 pub trait Shader: 'static {
@@ -21,6 +22,10 @@ pub trait Shader: 'static {
         position: [[f32; 4]; 4],
         scene_data: &SceneData,
     );
+
+    fn get_model_mat(&self) -> &Matrix4<f32>;
+
+    fn set_model_mat(&mut self, model: Matrix4<f32>);
 
     fn to_any(self) -> Box<dyn Any>;
     fn as_any(&self) -> &dyn Any;

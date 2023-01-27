@@ -6,6 +6,7 @@ use nalgebra::Matrix4;
 use std::any::Any;
 use std::{rc::Rc, sync::Arc};
 
+use crate::utils::texture_loader::TextureLoader;
 use crate::{insert_program, shader::Shader};
 
 #[derive(Clone)]
@@ -29,26 +30,19 @@ impl Default for PBRSimple {
 
 #[derive(Clone)]
 pub struct PBRTextures {
-    albedo: Arc<Texture2d>,
-    metallic: Arc<Texture2d>,
-    roughness: Arc<Texture2d>,
-    ao: Arc<Texture2d>,
-    normal: Arc<Texture2d>,
+    albedo: Rc<Texture2d>,
+    metallic: Rc<Texture2d>,
+    roughness: Rc<Texture2d>,
+    ao: Rc<Texture2d>,
+    normal: Rc<Texture2d>,
 }
 
 impl PBRTextures {
     pub fn from_simple(facade: &impl Facade, simple: PBRSimple) -> Self {
-        let create_texture = |data: [f32; 3]| {
-            Arc::new(
-                glium::Texture2d::with_format(
-                    facade,
-                    vec![Vec::from(data)],
-                    glium::texture::UncompressedFloatFormat::F16F16F16,
-                    glium::texture::MipmapsOption::NoMipmap,
-                )
-                .unwrap(),
-            )
-        };
+        let create_texture =
+            |data: [f32; 3]| Rc::new(TextureLoader::from_memory_f32(facade, &data, 1, 1).unwrap());
+
+        println!("from simple: {:?}", simple.albedo);
 
         Self {
             albedo: create_texture(simple.albedo),
@@ -57,6 +51,22 @@ impl PBRTextures {
             ao: create_texture([simple.ao; 3]),
             normal: create_texture([0.5, 0.5, 1.0]),
         }
+    }
+
+    pub fn set_albedo(&mut self, texture: Rc<Texture2d>) {
+        self.albedo = texture;
+    }
+    pub fn set_metallic(&mut self, texture: Rc<Texture2d>) {
+        self.metallic = texture;
+    }
+    pub fn set_roughness(&mut self, texture: Rc<Texture2d>) {
+        self.roughness = texture;
+    }
+    pub fn set_ao(&mut self, texture: Rc<Texture2d>) {
+        self.ao = texture;
+    }
+    pub fn set_normal(&mut self, texture: Rc<Texture2d>) {
+        self.normal = texture;
     }
 }
 
@@ -76,6 +86,10 @@ impl PBR {
             pbr_params: PBRTextures::from_simple(facade, Default::default()),
             model: Matrix4::new_translation(&[0.0; 3].into()),
         }
+    }
+
+    pub fn set_pbr_params(&mut self, params: PBRTextures) {
+        self.pbr_params = params;
     }
 }
 
@@ -130,6 +144,14 @@ impl Shader for PBR {
                 },
             )
             .unwrap();
+    }
+
+    fn get_model_mat(&self) -> &Matrix4<f32> {
+        &self.model
+    }
+
+    fn set_model_mat(&mut self, model: Matrix4<f32>) {
+        self.model = model;
     }
 
     fn equal_shader(&self, shader: &dyn std::any::Any) -> bool {
