@@ -182,11 +182,29 @@ impl Shader for PBR {
 
         let pbr_skybox = scene_data.get_scene_object::<PBRSkybox>().unwrap();
 
-        let irradiance_map = pbr_skybox.get_irradiance().as_ref();
+        let irradiance_map = pbr_skybox
+            .get_irradiance()
+            .as_ref()
+            .sampled()
+            .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp)
+            .minify_filter(glium::uniforms::MinifySamplerFilter::LinearMipmapLinear)
+            .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear);
 
-        let prefilter_map = pbr_skybox.get_prefilter().as_ref();
+        let prefilter_map = pbr_skybox
+            .get_prefilter()
+            .as_ref()
+            .sampled()
+            .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp)
+            .minify_filter(glium::uniforms::MinifySamplerFilter::LinearMipmapLinear)
+            .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear);
 
-        let brdf_lut = pbr_skybox.get_brdf().as_ref();
+        let brdf_lut = pbr_skybox
+            .get_brdf()
+            .as_ref()
+            .sampled()
+            .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp)
+            .minify_filter(glium::uniforms::MinifySamplerFilter::Linear)
+            .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear);
 
         let uniforms = uniform! {
             projection: camera,
