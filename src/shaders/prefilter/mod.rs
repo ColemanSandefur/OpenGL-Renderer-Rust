@@ -3,7 +3,6 @@ use crate::utils::shapes;
 use glium::backend::Facade;
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::texture::Cubemap;
-use glium::texture::DepthTexture2d;
 use glium::DrawParameters;
 use glium::IndexBuffer;
 use glium::Program;
@@ -49,7 +48,6 @@ impl Prefilter {
         )
         .unwrap();
 
-        let depth_buffer = DepthTexture2d::empty(facade, resolution, resolution).unwrap();
         let perspective = Matrix4::new_perspective(1.0, 90.0f32.to_radians(), 0.1, 10.0);
 
         for (layer_id, camera_dir) in layers.into_iter().zip(Self::camera_directions()) {
@@ -61,9 +59,7 @@ impl Prefilter {
 
             for mipmap_level in 0..cubemap.get_mipmap_levels() {
                 let cubemap_image = cubemap.mipmap(mipmap_level).unwrap().image(layer_id);
-                let mut fb =
-                    SimpleFrameBuffer::with_depth_buffer(facade, cubemap_image, &depth_buffer)
-                        .unwrap();
+                let mut fb = SimpleFrameBuffer::new(facade, cubemap_image).unwrap();
                 fb.clear_depth(1.0);
 
                 let roughness = mipmap_level as f32 / (cubemap.get_mipmap_levels() - 1) as f32;
