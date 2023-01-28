@@ -1,3 +1,6 @@
+use egui::Ui;
+use glium::backend::Context;
+use glium::texture::Cubemap;
 use glium::Blend;
 use glium::DrawParameters;
 use glium::Texture2d;
@@ -36,6 +39,7 @@ pub struct PBRTextures {
     roughness: Rc<Texture2d>,
     ao: Rc<Texture2d>,
     normal: Rc<Texture2d>,
+    facade: Rc<Context>,
 }
 
 impl PBRTextures {
@@ -49,6 +53,7 @@ impl PBRTextures {
             roughness: create_texture([simple.roughness; 3]),
             ao: create_texture([simple.ao; 3]),
             normal: create_texture([0.5, 0.5, 1.0]),
+            facade: facade.get_context().clone(),
         }
     }
 
@@ -66,6 +71,69 @@ impl PBRTextures {
     }
     pub fn set_normal(&mut self, texture: Rc<Texture2d>) {
         self.normal = texture;
+    }
+
+    pub fn debug_ui(&mut self, ui: &mut Ui) {
+        //Albedo
+        ui.label("Albedo");
+        let albedo: Vec<Vec<_>> = self.albedo.read();
+
+        let mut pixel = [
+            albedo[0][0].0 as f32 / 255.0,
+            albedo[0][0].1 as f32 / 255.0,
+            albedo[0][0].2 as f32 / 255.0,
+        ];
+
+        if egui::widgets::color_picker::color_edit_button_rgb(ui, &mut pixel).changed() {
+            self.set_albedo(
+                TextureLoader::from_memory_f32(&self.facade, &pixel, 1, 1)
+                    .unwrap()
+                    .into(),
+            );
+        }
+
+        // Metallic
+        let metallic: Vec<Vec<_>> = self.metallic.read();
+        let mut metallic = metallic[0][0].0;
+        if self.debug_slider(ui, "metallic", &mut metallic) {
+            self.set_metallic(
+                TextureLoader::from_memory_f32(&self.facade, &[metallic as f32 / 255.0; 3], 1, 1)
+                    .unwrap()
+                    .into(),
+            );
+        }
+
+        // Roughness
+        let roughness: Vec<Vec<_>> = self.roughness.read();
+        let mut roughness = roughness[0][0].0;
+        if self.debug_slider(ui, "roughness", &mut roughness) {
+            self.set_roughness(
+                TextureLoader::from_memory_f32(&self.facade, &[roughness as f32 / 255.0; 3], 1, 1)
+                    .unwrap()
+                    .into(),
+            );
+        }
+
+        // Ambient Occlusion
+        let ao: Vec<Vec<_>> = self.ao.read();
+        let mut ao = ao[0][0].0;
+        if self.debug_slider(ui, "ao", &mut ao) {
+            self.set_ao(
+                TextureLoader::from_memory_f32(&self.facade, &[ao as f32 / 255.0; 3], 1, 1)
+                    .unwrap()
+                    .into(),
+            );
+        }
+    }
+
+    fn debug_slider(&self, ui: &mut Ui, label: &str, value: &mut u8) -> bool {
+        ui.label(label);
+
+        let changed = ui.add(egui::widgets::Slider::new(value, 0..=255)).changed();
+
+        ui.separator();
+
+        changed
     }
 }
 
@@ -94,6 +162,10 @@ impl PBR {
     pub fn get_pbr_params_mut(&mut self) -> &mut PBRTextures {
         &mut self.pbr_params
     }
+
+    pub fn debug_ui(&mut self, ui: &mut Ui) {
+        self.pbr_params.debug_ui(ui);
+    }
 }
 
 impl Shader for PBR {
@@ -108,7 +180,13 @@ impl Shader for PBR {
     ) {
         let model_matrix: [[f32; 4]; 4] = self.model.into();
 
-        let pbr_skybox = scene_data.get_scene_object::<PBRSkybox>();
+        let pbr_skybox = scene_data.get_scene_object::<PBRSkybox>().unwrap();
+
+        let irradiance_map = pbr_skybox.get_irradiance().as_ref();
+
+        let prefilter_map = pbr_skybox.get_prefilter().as_ref();
+
+        let brdf_lut = pbr_skybox.get_brdf().as_ref();
 
         let uniforms = uniform! {
             projection: camera,
@@ -121,13 +199,11 @@ impl Shader for PBR {
             normal_map: &*self.pbr_params.normal,
             lightPositions: [10.0f32, 10.0, 3.0],
             lightColors: [1500.0f32;3],
-            camPos: Into::<[f32; 3]>::into(scene_data.camera.position)
+            camPos: Into::<[f32; 3]>::into(scene_data.camera.position),
+            irradiance_map: irradiance_map,
+            prefilter_map: prefilter_map,
+            brdfLUT: brdf_lut,
         };
-
-        let uniforms = uniforms.add(
-            "irradiance_map",
-            pbr_skybox.unwrap().get_irradiance().as_ref(),
-        );
 
         surface
             .draw(

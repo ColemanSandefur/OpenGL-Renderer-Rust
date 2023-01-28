@@ -13,6 +13,8 @@ uniform sampler2D ao_map;
 
 // IBL
 uniform samplerCube irradiance_map;
+uniform samplerCube prefilter_map;
+uniform sampler2D brdfLUT;
 
 // lights
 uniform vec3 lightPositions;
@@ -89,13 +91,14 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 // ----------------------------------------------------------------------------
 void main()
 {		
-    vec3 albedo     = pow(texture(albedo_map, TexCoords).rgb, vec3(2.2));
+    vec3 albedo     = texture(albedo_map, TexCoords).rgb;
     float metallic  = texture(metallic_map, TexCoords).r;
     float roughness = texture(roughness_map, TexCoords).r;
     float ao        = texture(ao_map, TexCoords).r;
 
     vec3 N = getNormalFromMap();
     vec3 V = normalize(camPos - WorldPos);
+    vec3 R = reflect(-V, N);
 
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
     // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
@@ -143,16 +146,24 @@ void main()
     vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
     vec3 kD = 1.0 - kS;
     kD *= 1.0 - metallic;	  
+    
     vec3 irradiance = texture(irradiance_map, N).rgb;
     vec3 diffuse      = irradiance * albedo;
-    vec3 ambient = (kD * diffuse) * ao; 
+    
+    // sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 prefilteredColor = textureLod(prefilter_map, R,  roughness * MAX_REFLECTION_LOD).rgb;    
+    vec2 brdf  = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec3 specular = prefilteredColor * (kS * brdf.x + brdf.y);
+
+    vec3 ambient = (kD * diffuse + specular) * ao;
 
     vec3 color = ambient + Lo;
 
-    // HDR tonemapping
-    color = color / (color + vec3(1.0));
-    // gamma correct
-    color = pow(color, vec3(1.0/2.2)); 
+    //// HDR tonemapping
+    //color = color / (color + vec3(1.0));
+    //// gamma correct
+    //color = pow(color, vec3(1.0/2.2)); 
 
     FragColor = vec4(color, 1.0);
 }

@@ -2,9 +2,11 @@ use egui::style::Margin;
 use glium::IndexBuffer;
 use glium::VertexBuffer;
 use nalgebra::Perspective3;
+use opengl_renderer::shaders::brdf::BRDF;
 use opengl_renderer::shaders::equi_rect_to_cubemap::EquiRectCubemap;
 use opengl_renderer::shaders::irradiance_convolution::IrradianceConvolution;
 use opengl_renderer::shaders::pbr::PBR;
+use opengl_renderer::shaders::prefilter::Prefilter;
 use opengl_renderer::shaders::skybox::Skybox;
 use opengl_renderer::utils::model::ModelLoad;
 use opengl_renderer::utils::pbr_skybox::PBRSkybox;
@@ -58,6 +60,9 @@ fn main() {
     );
 
     cube.set_position([-2.0, 0.0, -1.0].into());
+    cube.get_shader_mut()
+        .get_pbr_params_mut()
+        .set_albedo(BRDF::load_from_fs(&facade).compute(&facade).into());
 
     let pbr_skybox = {
         let skybox_cubemap = EquiRectCubemap::load_from_fs(&facade).compute(
@@ -69,7 +74,14 @@ fn main() {
         let irradiance =
             IrradianceConvolution::load_from_fs(&facade).calculate(&facade, &skybox_cubemap);
 
-        PBRSkybox::new(skybox_cubemap.into(), irradiance.into())
+        let prefilter = Prefilter::load_from_fs(&facade).compute(&facade, &skybox_cubemap);
+
+        PBRSkybox::new(
+            skybox_cubemap.into(),
+            irradiance.into(),
+            prefilter.into(),
+            BRDF::load_from_fs(&facade).compute(&facade).into(),
+        )
     };
 
     let skybox = Model::new(
@@ -167,8 +179,12 @@ fn main() {
                     });
                     ui.separator();
 
-                    sphere.debug_ui(ui);
-                    cube.debug_ui(ui);
+                    ui.push_id("sphere", |ui| {
+                        sphere.debug_ui(ui);
+                    });
+                    ui.push_id("cube", |ui| {
+                        cube.debug_ui(ui);
+                    });
                 })
             });
 
@@ -306,157 +322,3 @@ impl RenderSurface {
         self.texture.height()
     }
 }
-
-//struct Object {
-//vertices: VertexBuffer<Vertex>,
-//indices: IndexBuffer<u32>,
-//pbr: PBR,
-//euler: [f32; 3],
-//}
-
-//impl Object {
-//pub fn from_fs(facade: &impl Facade) -> Result<Self, Box<dyn std::error::Error>> {
-//let scene = Scene::from_file(
-//"resources/plane.obj",
-//vec![
-//// Quick fix, should change later
-//PostProcess::PreTransformVertices,
-//PostProcess::GenerateNormals,
-//PostProcess::Triangulate,
-//],
-//)?;
-
-//let mesh = &scene.meshes[0];
-//let vertices = (0..mesh.vertices.len())
-//.map(|index| {
-//let vertex = mesh.vertices[index as usize];
-//let position: [f32; 3] = [vertex.x, vertex.y, vertex.z];
-//let normal_vec = mesh.normals[index as usize];
-//let normal = [normal_vec.x, normal_vec.y, normal_vec.z];
-//let tex_coords = match mesh.texture_coords[0].as_ref() {
-//Some(texture_coords) => {
-//let vec3 = texture_coords[index as usize];
-//[vec3.x, vec3.y]
-//}
-//None => [0.0; 2],
-//};
-
-//return Vertex {
-//position,
-//normal,
-//tex_coords,
-//..Default::default()
-//};
-//})
-//.collect::<Vec<_>>();
-
-//let indices = mesh
-//.faces
-//.iter()
-//.flat_map(|face| face.0.clone())
-//.collect::<Vec<_>>();
-
-//let index_buffer =
-//IndexBuffer::new(facade, glium::index::PrimitiveType::TrianglesList, &indices)?;
-//let vertex_buffer = VertexBuffer::new(facade, &vertices)?;
-//let mut pbr = PBR::load_from_fs(facade);
-//let mut pbr_tex = PBRTextures::from_simple(
-//facade,
-//PBRSimple {
-//albedo: [1.0, 0.0, 0.0],
-//..Default::default()
-//},
-//);
-//pbr_tex.set_albedo(Rc::new(TextureLoader::from_fs(
-//facade,
-////"resources/Summi_Pool_3k.hdr",
-//"resources/landscape.jpg",
-//)?));
-//pbr.set_pbr_params(pbr_tex);
-
-//Ok(Self {
-//indices: index_buffer,
-//vertices: vertex_buffer,
-//pbr,
-//euler: [0.0, 0.0, 0.0],
-//})
-//}
-
-//pub fn debug_ui(&mut self, ui: &mut egui::Ui) -> egui::InnerResponse<()> {
-//ui.horizontal(|ui| {
-//let mut angles = [
-//self.euler[0].to_degrees(),
-//self.euler[1].to_degrees(),
-//self.euler[2].to_degrees(),
-//];
-
-//let mut changed = false;
-//changed = ui
-//.add(egui::widgets::DragValue::new(&mut angles[0]).prefix("roll: "))
-//.changed()
-//|| changed;
-//changed = ui
-//.add(egui::widgets::DragValue::new(&mut angles[1]).prefix("pitch: "))
-//.changed()
-//|| changed;
-//changed = ui
-//.add(egui::widgets::DragValue::new(&mut angles[2]).prefix("yaw: "))
-//.changed()
-//|| changed;
-
-//self.euler[0] = (angles[0] % 360.0).to_radians();
-//self.euler[1] = (angles[1] % 360.0).to_radians();
-//self.euler[2] = (angles[2] % 360.0).to_radians();
-
-//if changed {
-//self.pbr.set_model_mat(Matrix4::from_euler_angles(
-//self.euler[0],
-//self.euler[1],
-//self.euler[2],
-//));
-//}
-//})
-//}
-
-//pub fn cube(facade: &impl Facade) -> Self {
-//let vertices = opengl_renderer::utils::shapes::get_cube();
-
-//let vb = VertexBuffer::new(facade, &vertices).unwrap();
-//let ib = IndexBuffer::new(
-//facade,
-//glium::index::PrimitiveType::TrianglesList,
-//&(0u32..vertices.len() as u32)
-//.into_iter()
-//.collect::<Vec<u32>>(),
-//)
-//.unwrap();
-//let mut pbr = PBR::load_from_fs(facade);
-//let mut pbr_tex = PBRTextures::from_simple(
-//facade,
-//PBRSimple {
-//albedo: [1.0, 0.0, 0.0],
-//..Default::default()
-//},
-//);
-//pbr_tex.set_albedo(Rc::new(
-//TextureLoader::from_fs(
-//facade,
-//"resources/Summi_Pool_3k.hdr",
-////"resources/landscape.jpg",
-//)
-//.unwrap(),
-//));
-//pbr.set_pbr_params(pbr_tex);
-
-//Self {
-//vertices: vb,
-//indices: ib,
-//pbr,
-//euler: [0.0; 3],
-//}
-//}
-
-//pub fn publish<'a>(&'a self, scene: &mut RenderScene<'a>) {
-//scene.publish(&self.vertices, &self.indices, &self.pbr);
-//}
-//}

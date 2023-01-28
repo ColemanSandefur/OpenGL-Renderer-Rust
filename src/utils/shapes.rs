@@ -227,3 +227,28 @@ pub fn get_cube() -> Vec<Vertex> {
         }, // bottom-left
     ]
 }
+
+pub fn get_quad() -> [Vertex; 4] {
+    [
+        Vertex {
+            position: [-1.0, 1.0, 0.0],
+            tex_coords: [0.0, 1.0],
+            ..Default::default()
+        },
+        Vertex {
+            position: [-1.0, -1.0, 0.0],
+            tex_coords: [0.0, 0.0],
+            ..Default::default()
+        },
+        Vertex {
+            position: [1.0, 1.0, 0.0],
+            tex_coords: [1.0, 1.0],
+            ..Default::default()
+        },
+        Vertex {
+            position: [1.0, -1.0, 0.0],
+            tex_coords: [1.0, 0.0],
+            ..Default::default()
+        },
+    ]
+}

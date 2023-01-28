@@ -182,6 +182,10 @@ impl Model<PBR> {
             self.update_matrix()
         };
 
+        egui::CollapsingHeader::new("PBR Values").show(ui, |ui| {
+            self.shader.debug_ui(ui);
+        });
+
         egui::InnerResponse::new((), response)
     }
 }
