@@ -58,6 +58,26 @@ where
     pub fn get_shader_mut(&mut self) -> &mut S {
         &mut self.shader
     }
+    pub fn get_rotation(&self) -> &Rotation {
+        &self.euler
+    }
+    pub fn set_rotation(&mut self, rotation: Rotation) {
+        self.euler = rotation;
+        self.update_matrix();
+    }
+
+    pub fn get_position(&self) -> &Vector3<f32> {
+        &self.position
+    }
+    pub fn set_position(&mut self, position: Vector3<f32>) {
+        self.position = position;
+        self.update_matrix();
+    }
+
+    pub fn update_matrix(&mut self) {
+        self.shader
+            .set_model_mat(self.euler.get_matrix4().append_translation(&self.position));
+    }
 }
 
 pub trait ModelLoad {
@@ -72,12 +92,12 @@ impl ModelLoad for Model<PBR> {
     where
         P: AsRef<Path>,
     {
-        println!("path: {}", path.as_ref().to_str().unwrap());
+        let path = path.as_ref();
         let scene = Scene::from_file(
-            path.as_ref()
-                .as_os_str()
-                .to_str()
-                .ok_or("error making path")?,
+            path.to_str().ok_or(format!(
+                "Error loading file {:?}, invalid name",
+                path.file_name()
+            ))?,
             vec![
                 // Quick fix, should change later
                 PostProcess::PreTransformVertices,
@@ -159,8 +179,7 @@ impl Model<PBR> {
         });
 
         if response.changed() {
-            self.shader
-                .set_model_mat(self.euler.get_matrix4().append_translation(&self.position));
+            self.update_matrix()
         };
 
         egui::InnerResponse::new((), response)

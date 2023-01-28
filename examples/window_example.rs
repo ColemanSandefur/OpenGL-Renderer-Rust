@@ -3,9 +3,11 @@ use glium::IndexBuffer;
 use glium::VertexBuffer;
 use nalgebra::Perspective3;
 use opengl_renderer::shaders::equi_rect_to_cubemap::EquiRectCubemap;
+use opengl_renderer::shaders::irradiance_convolution::IrradianceConvolution;
 use opengl_renderer::shaders::pbr::PBR;
 use opengl_renderer::shaders::skybox::Skybox;
 use opengl_renderer::utils::model::ModelLoad;
+use opengl_renderer::utils::pbr_skybox::PBRSkybox;
 use opengl_renderer::utils::texture_loader::TextureLoader;
 use std::rc::Rc;
 
@@ -55,26 +57,31 @@ fn main() {
         PBR::load_from_fs(&facade),
     );
 
-    let skybox_cubemap = EquiRectCubemap::load_from_fs(&facade).compute(
-        &facade,
-        &TextureLoader::from_fs_hdr(&facade, "resources/textures/Summi_Pool_3k.hdr").unwrap(),
-        512,
-    );
+    cube.set_position([-2.0, 0.0, -1.0].into());
 
-    let skybox = {
-        let mut skybox_mat = Skybox::load_from_fs(&facade);
-        skybox_mat.set_skybox(skybox_cubemap);
-        Model::new(
-            VertexBuffer::new(&facade, &opengl_renderer::utils::shapes::get_cube()).unwrap(),
-            IndexBuffer::new(
-                &facade,
-                glium::index::PrimitiveType::TrianglesList,
-                &(0..36).into_iter().collect::<Vec<_>>(),
-            )
-            .unwrap(),
-            skybox_mat,
-        )
+    let pbr_skybox = {
+        let skybox_cubemap = EquiRectCubemap::load_from_fs(&facade).compute(
+            &facade,
+            &TextureLoader::from_fs_hdr(&facade, "resources/textures/newport_loft.hdr").unwrap(),
+            512,
+        );
+
+        let irradiance =
+            IrradianceConvolution::load_from_fs(&facade).calculate(&facade, &skybox_cubemap);
+
+        PBRSkybox::new(skybox_cubemap.into(), irradiance.into())
     };
+
+    let skybox = Model::new(
+        VertexBuffer::new(&facade, &opengl_renderer::utils::shapes::get_cube()).unwrap(),
+        IndexBuffer::new(
+            &facade,
+            glium::index::PrimitiveType::TrianglesList,
+            &(0..36).into_iter().collect::<Vec<_>>(),
+        )
+        .unwrap(),
+        Skybox::load_from_fs(&facade),
+    );
 
     let mut camera = Camera::new();
     camera.position = [0.0, 0.0, 3.0].into();
@@ -205,6 +212,7 @@ fn main() {
                 .into();
 
                 scene.scene_data.camera = camera.clone();
+                scene.scene_data.set_scene_object(pbr_skybox.clone());
 
                 sphere.publish(&mut scene);
                 cube.publish(&mut scene);

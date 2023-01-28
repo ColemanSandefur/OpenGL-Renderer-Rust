@@ -60,6 +60,12 @@ pub struct SceneData {
     scene_vars: HashMap<&'static str, Box<dyn Any>>,
 }
 
+enum SceneObject<'a> {
+    Owned(Box<dyn Any>),
+    Borrowed(&'a dyn Any),
+    BorrowedMut(&'a mut dyn Any),
+}
+
 impl SceneData {
     fn new() -> Self {
         Self {
@@ -68,6 +74,28 @@ impl SceneData {
             scene_objects: HashMap::new(),
             scene_vars: HashMap::new(),
         }
+    }
+    pub fn get_scene_object_raw<T: 'static + Sized>(&self) -> Option<&Box<dyn Any>> {
+        self.scene_objects.get(&TypeId::of::<T>())
+    }
+    pub fn get_scene_object_raw_mut<T: 'static + Sized>(&mut self) -> Option<&mut Box<dyn Any>> {
+        self.scene_objects.get_mut(&TypeId::of::<T>())
+    }
+
+    pub fn get_scene_object<T: 'static + Sized>(&self) -> Option<&T> {
+        let object = self.get_scene_object_raw::<T>()?;
+
+        object.downcast_ref()
+    }
+
+    pub fn get_scene_object_mut<T: 'static + Sized>(&mut self) -> Option<&mut T> {
+        let object = self.get_scene_object_raw_mut::<T>()?;
+
+        object.downcast_mut()
+    }
+
+    pub fn set_scene_object<T: Any>(&mut self, data: T) {
+        self.scene_objects.insert(TypeId::of::<T>(), Box::new(data));
     }
 }
 

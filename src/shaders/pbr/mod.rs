@@ -6,6 +6,7 @@ use nalgebra::Matrix4;
 use std::any::Any;
 use std::rc::Rc;
 
+use crate::utils::pbr_skybox::PBRSkybox;
 use crate::utils::texture_loader::TextureLoader;
 use crate::{insert_program, shader::Shader};
 
@@ -103,9 +104,12 @@ impl Shader for PBR {
         surface: &mut crate::renderer::Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
-        _scene_data: &crate::renderer::SceneData,
+        scene_data: &crate::renderer::SceneData,
     ) {
         let model_matrix: [[f32; 4]; 4] = self.model.into();
+
+        let pbr_skybox = scene_data.get_scene_object::<PBRSkybox>();
+
         let uniforms = uniform! {
             projection: camera,
             view: position,
@@ -116,8 +120,14 @@ impl Shader for PBR {
             ao_map: &*self.pbr_params.ao,
             normal_map: &*self.pbr_params.normal,
             lightPositions: [10.0f32, 10.0, 3.0],
-            lightColors: [1500.0f32;3]
+            lightColors: [1500.0f32;3],
+            camPos: Into::<[f32; 3]>::into(scene_data.camera.position)
         };
+
+        let uniforms = uniforms.add(
+            "irradiance_map",
+            pbr_skybox.unwrap().get_irradiance().as_ref(),
+        );
 
         surface
             .draw(

@@ -1,8 +1,9 @@
 use crate::insert_program;
 use crate::shader::Shader;
+use crate::utils::pbr_skybox::PBRSkybox;
 use glium::backend::Facade;
 use glium::DrawParameters;
-use glium::{texture::Cubemap, Program};
+use glium::Program;
 use nalgebra::Matrix4;
 use std::any::Any;
 use std::rc::Rc;
@@ -10,22 +11,13 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub struct Skybox {
     program: Rc<Program>,
-    skybox: Rc<Cubemap>,
 }
 
 impl Skybox {
     pub fn load_from_fs(facade: &impl Facade) -> Self {
         let program = Rc::new(insert_program!("./vertex.glsl", "./fragment.glsl", facade));
-        let cubemap = Rc::new(Cubemap::empty(facade, 0).unwrap());
 
-        Self {
-            program,
-            skybox: cubemap,
-        }
-    }
-
-    pub fn set_skybox(&mut self, skybox: Cubemap) {
-        self.skybox = skybox.into();
+        Self { program }
     }
 }
 impl Shader for Skybox {
@@ -36,14 +28,17 @@ impl Shader for Skybox {
         surface: &mut crate::renderer::Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
-        _scene_data: &crate::renderer::SceneData,
+        scene_data: &crate::renderer::SceneData,
     ) {
-        let cubemap = &*self.skybox;
+        let cubemap = scene_data
+            .get_scene_object::<PBRSkybox>()
+            .expect("no skybox provided")
+            .get_skybox();
 
         let uniforms = uniform! {
             projection: camera,
             view: position,
-            environmentMap: cubemap
+            environmentMap: &**cubemap
         };
 
         surface
