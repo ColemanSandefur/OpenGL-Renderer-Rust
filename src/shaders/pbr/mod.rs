@@ -4,7 +4,7 @@ use glium::Texture2d;
 use glium::{backend::Facade, Program};
 use nalgebra::Matrix4;
 use std::any::Any;
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
 use crate::utils::texture_loader::TextureLoader;
 use crate::{insert_program, shader::Shader};
@@ -41,8 +41,6 @@ impl PBRTextures {
     pub fn from_simple(facade: &impl Facade, simple: PBRSimple) -> Self {
         let create_texture =
             |data: [f32; 3]| Rc::new(TextureLoader::from_memory_f32(facade, &data, 1, 1).unwrap());
-
-        println!("from simple: {:?}", simple.albedo);
 
         Self {
             albedo: create_texture(simple.albedo),
@@ -91,6 +89,10 @@ impl PBR {
     pub fn set_pbr_params(&mut self, params: PBRTextures) {
         self.pbr_params = params;
     }
+
+    pub fn get_pbr_params_mut(&mut self) -> &mut PBRTextures {
+        &mut self.pbr_params
+    }
 }
 
 impl Shader for PBR {
@@ -101,7 +103,7 @@ impl Shader for PBR {
         surface: &mut crate::renderer::Renderable,
         camera: [[f32; 4]; 4],
         position: [[f32; 4]; 4],
-        scene_data: &crate::renderer::SceneData,
+        _scene_data: &crate::renderer::SceneData,
     ) {
         let model_matrix: [[f32; 4]; 4] = self.model.into();
         let uniforms = uniform! {
@@ -146,15 +148,15 @@ impl Shader for PBR {
             .unwrap();
     }
 
-    fn get_model_mat(&self) -> &Matrix4<f32> {
-        &self.model
+    fn get_model_mat(&self) -> Matrix4<f32> {
+        self.model
     }
 
     fn set_model_mat(&mut self, model: Matrix4<f32>) {
         self.model = model;
     }
 
-    fn equal_shader(&self, shader: &dyn std::any::Any) -> bool {
+    fn equal_shader(&self, _shader: &dyn std::any::Any) -> bool {
         false
     }
 

@@ -1,6 +1,12 @@
 use egui::style::Margin;
+use glium::IndexBuffer;
+use glium::VertexBuffer;
 use nalgebra::Perspective3;
+use opengl_renderer::shaders::equi_rect_to_cubemap::EquiRectCubemap;
+use opengl_renderer::shaders::pbr::PBR;
+use opengl_renderer::shaders::skybox::Skybox;
 use opengl_renderer::utils::model::ModelLoad;
+use opengl_renderer::utils::texture_loader::TextureLoader;
 use std::rc::Rc;
 
 use glium::backend::Facade;
@@ -31,6 +37,44 @@ fn main() {
     let mut renderer = Renderer::new();
 
     let mut sphere = Model::load_from_fs(&facade, "resources/objects/sphere.glb").unwrap();
+
+    sphere.get_shader_mut().get_pbr_params_mut().set_albedo(
+        TextureLoader::from_memory_f32(&facade, &[0.0, 1.0, 1.0], 1, 1)
+            .unwrap()
+            .into(),
+    );
+
+    let mut cube = Model::new(
+        VertexBuffer::new(&facade, &opengl_renderer::utils::shapes::get_cube()).unwrap(),
+        IndexBuffer::new(
+            &facade,
+            glium::index::PrimitiveType::TrianglesList,
+            &(0..36).into_iter().collect::<Vec<_>>(),
+        )
+        .unwrap(),
+        PBR::load_from_fs(&facade),
+    );
+
+    let skybox_cubemap = EquiRectCubemap::load_from_fs(&facade).compute(
+        &facade,
+        &TextureLoader::from_fs_hdr(&facade, "resources/textures/Summi_Pool_3k.hdr").unwrap(),
+        512,
+    );
+
+    let skybox = {
+        let mut skybox_mat = Skybox::load_from_fs(&facade);
+        skybox_mat.set_skybox(skybox_cubemap);
+        Model::new(
+            VertexBuffer::new(&facade, &opengl_renderer::utils::shapes::get_cube()).unwrap(),
+            IndexBuffer::new(
+                &facade,
+                glium::index::PrimitiveType::TrianglesList,
+                &(0..36).into_iter().collect::<Vec<_>>(),
+            )
+            .unwrap(),
+            skybox_mat,
+        )
+    };
 
     let mut camera = Camera::new();
     camera.position = [0.0, 0.0, 3.0].into();
@@ -117,6 +161,7 @@ fn main() {
                     ui.separator();
 
                     sphere.debug_ui(ui);
+                    cube.debug_ui(ui);
                 })
             });
 
@@ -162,6 +207,8 @@ fn main() {
                 scene.scene_data.camera = camera.clone();
 
                 sphere.publish(&mut scene);
+                cube.publish(&mut scene);
+                skybox.publish(&mut scene);
 
                 scene.finish(&mut Renderable::from(&mut buffer));
 

@@ -23,7 +23,7 @@ pub trait Shader: 'static {
         scene_data: &SceneData,
     );
 
-    fn get_model_mat(&self) -> &Matrix4<f32>;
+    fn get_model_mat(&self) -> Matrix4<f32>;
 
     fn set_model_mat(&mut self, model: Matrix4<f32>);
 

@@ -4,8 +4,6 @@ use crate::utils::positioning::Rotation;
 use crate::{renderer::RenderScene, shaders::pbr::PBR};
 use glium::backend::Facade;
 use glium::{IndexBuffer, VertexBuffer};
-use nalgebra::Matrix4;
-use nalgebra::Rotation3;
 use nalgebra::Vector3;
 use rayon::prelude::IntoParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
@@ -32,8 +30,33 @@ impl<S> Model<S>
 where
     S: Shader,
 {
+    pub fn new(vb: VertexBuffer<Vertex>, ib: IndexBuffer<u32>, shader: S) -> Self {
+        Self {
+            vertex_buffer: vb,
+            index_buffer: ib,
+            shader,
+            euler: Rotation::from_euler_angles(0.0, 0.0, 0.0),
+            position: [0.0; 3].into(),
+        }
+    }
+
     pub fn publish<'a>(&'a self, scene: &mut RenderScene<'a>) {
         scene.publish(&self.vertex_buffer, &self.index_buffer, &self.shader);
+    }
+
+    pub fn set_vertext_buffer(&mut self, vb: VertexBuffer<Vertex>) {
+        self.vertex_buffer = vb;
+    }
+    pub fn set_index_buffer(&mut self, ib: IndexBuffer<u32>) {
+        self.index_buffer = ib;
+    }
+
+    pub fn get_shader(&self) -> &S {
+        &self.shader
+    }
+
+    pub fn get_shader_mut(&mut self) -> &mut S {
+        &mut self.shader
     }
 }
 

@@ -6,7 +6,7 @@ use image::io::Reader as ImageReader;
 use rayon::prelude::IntoParallelRefIterator;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::BufReader;
 use std::path::Path;
 use std::{borrow::Cow, error::Error};
 
@@ -36,7 +36,7 @@ impl TextureLoader {
         facade: &impl Facade,
         path: impl AsRef<Path>,
     ) -> Result<Texture2d, Box<dyn Error>> {
-        let img = ImageReader::open(path)?.decode()?.into_rgb32f();
+        let img = ImageReader::open(path)?.decode()?.flipv().into_rgb32f();
         let (width, height) = img.dimensions();
         let img_data = img.into_raw();
 
@@ -56,15 +56,12 @@ impl TextureLoader {
 
         let mut pixels = hdr_image.read_image_hdr()?;
 
-        for w in 0..width / 2 {
-            for h in 0..height {
+        for h in 0..height / 2 {
+            for w in 0..width {
                 let index = (w + (h * width)) as usize;
-                let index2 = ((h * width) + (width - w - 1)) as usize;
-                let p = pixels[index];
-                let p2 = pixels[index2];
+                let index2 = (w + ((height - h - 1) * width)) as usize;
 
-                pixels[index] = p2;
-                pixels[index2] = p;
+                pixels.swap(index, index2);
             }
         }
 

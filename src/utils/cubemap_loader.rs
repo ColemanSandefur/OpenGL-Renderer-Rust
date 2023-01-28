@@ -1,7 +1,6 @@
 use glium::texture::RawImage2d;
 use glium::{pixel_buffer::PixelBuffer, texture::CubeLayer};
 use image::DynamicImage;
-use std::error::Error;
 
 type Pixel = (u8, u8, u8, u8);
 

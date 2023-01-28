@@ -103,7 +103,7 @@ impl SystemLoop {
 
                     target.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
 
-                    let _duration = egui_glium.run(&window.display, |egui_ctx| {});
+                    let _duration = egui_glium.run(&window.display, |_egui_ctx| {});
                     {
                         let mut render_info = RenderInfo {
                             window: &window,
