@@ -5,7 +5,6 @@ use nalgebra::Perspective3;
 use opengl_renderer::shaders::brdf::BRDF;
 use opengl_renderer::shaders::equi_rect_to_cubemap::EquiRectCubemap;
 use opengl_renderer::shaders::irradiance_convolution::IrradianceConvolution;
-use opengl_renderer::shaders::pbr::PBR;
 use opengl_renderer::shaders::prefilter::Prefilter;
 use opengl_renderer::shaders::skybox::Skybox;
 use opengl_renderer::utils::model::ModelLoad;
@@ -39,30 +38,6 @@ fn main() {
         .register_native_texture(render_texture.texture.clone(), Default::default());
 
     let mut renderer = Renderer::new();
-
-    let mut sphere = Model::load_from_fs(&facade, "resources/objects/sphere.glb").unwrap();
-
-    sphere.get_shader_mut().get_pbr_params_mut().set_albedo(
-        TextureLoader::from_memory_f32(&facade, &[0.0, 1.0, 1.0], 1, 1)
-            .unwrap()
-            .into(),
-    );
-
-    let mut cube = Model::new(
-        VertexBuffer::new(&facade, &opengl_renderer::utils::shapes::get_cube()).unwrap(),
-        IndexBuffer::new(
-            &facade,
-            glium::index::PrimitiveType::TrianglesList,
-            &(0..36).into_iter().collect::<Vec<_>>(),
-        )
-        .unwrap(),
-        PBR::load_from_fs(&facade),
-    );
-
-    cube.set_position([-2.0, 0.0, -1.0].into());
-    cube.get_shader_mut()
-        .get_pbr_params_mut()
-        .set_albedo(BRDF::load_from_fs(&facade).compute(&facade).into());
 
     let pbr_skybox = {
         let skybox_cubemap = EquiRectCubemap::load_from_fs(&facade).compute(
@@ -98,13 +73,28 @@ fn main() {
     let mut camera = Camera::new();
     camera.position = [0.0, 0.0, 3.0].into();
 
+    let mut models = vec![Model::load_from_fs(&facade, "resources/objects/sphere.glb").unwrap()];
+
     event_loop.subscribe_render(move |render_info| {
         render_info.target.clear_color(0.0, 0.0, 0.0, 1.0);
 
         egui::TopBottomPanel::top("topbar").show(&render_info.egui_glium.egui_ctx, |ui| {
-            if ui.button("show debug").clicked() {
-                debug_open = true;
-            }
+            ui.horizontal(|ui| {
+                if ui.button("show debug").clicked() {
+                    debug_open = true;
+                }
+                // Open model
+                if ui.button("open").clicked() {
+                    if let Some(files) = rfd::FileDialog::new().pick_files() {
+                        for path in files {
+                            if let Ok(model) = Model::load_from_fs(&facade, path) {
+                                // Move the model off of the camera so you can actually see it
+                                models.push(model);
+                            }
+                        }
+                    }
+                }
+            });
         });
 
         egui::Window::new("debug")
@@ -179,12 +169,13 @@ fn main() {
                     });
                     ui.separator();
 
-                    ui.push_id("sphere", |ui| {
-                        sphere.debug_ui(ui);
-                    });
-                    ui.push_id("cube", |ui| {
-                        cube.debug_ui(ui);
-                    });
+                    for (i, model) in models.iter_mut().enumerate() {
+                        ui.push_id(i, |ui| {
+                            ui.label(format!("Model {}", i));
+                            model.debug_ui(ui);
+                            ui.separator();
+                        });
+                    }
                 })
             });
 
@@ -221,7 +212,7 @@ fn main() {
                     render_texture.width().max(1) as f32 / render_texture.height().max(1) as f32,
                     70.0f32.to_radians(),
                     0.1,
-                    100.0,
+                    100000.0,
                 )
                 .as_matrix()
                 .clone()
@@ -230,8 +221,9 @@ fn main() {
                 scene.scene_data.camera = camera.clone();
                 scene.scene_data.set_scene_object(pbr_skybox.clone());
 
-                sphere.publish(&mut scene);
-                cube.publish(&mut scene);
+                for model in &models {
+                    model.publish(&mut scene);
+                }
                 skybox.publish(&mut scene);
 
                 scene.finish(&mut Renderable::from(&mut buffer));
