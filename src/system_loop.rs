@@ -122,7 +122,6 @@ impl SystemLoop {
                     target.finish().expect("Failed to swap buffers");
 
                     last_frame = now;
-                    window.display.gl_window().window().request_redraw();
                 }
                 Event::WindowEvent {
                     event: glutin::event::WindowEvent::CloseRequested,
@@ -133,6 +132,8 @@ impl SystemLoop {
                 }
                 _ => (),
             }
+
+            window.display.gl_window().window().request_redraw();
         });
     }
 }

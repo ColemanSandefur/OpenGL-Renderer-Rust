@@ -24,7 +24,7 @@ glium = "0.32"
 
 nalgebra="0.32.1"
 
-russimp="2.0.2"
+russimp={version = "2.0.2", features = ["prebuilt"]}
 rayon = "1.6.1"
 image = "0.24.5"
 gl = "0.14.0" # Raw OpenGL Bindings
