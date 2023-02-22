@@ -20,6 +20,7 @@ impl Skybox {
         Self { program }
     }
 }
+
 impl Shader for Skybox {
     fn render<'a>(
         &self,

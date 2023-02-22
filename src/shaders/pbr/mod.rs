@@ -76,64 +76,98 @@ impl PBRTextures {
     pub fn debug_ui(&mut self, ui: &mut Ui) {
         //Albedo
         ui.label("Albedo");
-        let albedo: Vec<Vec<_>> = self.albedo.read();
 
-        let mut pixel = [
-            albedo[0][0].0 as f32 / 255.0,
-            albedo[0][0].1 as f32 / 255.0,
-            albedo[0][0].2 as f32 / 255.0,
-        ];
+        if self.albedo.width() == 1 && self.albedo.height() == 1 {
+            let albedo: Vec<Vec<_>> = self.albedo.read();
 
-        if egui::widgets::color_picker::color_edit_button_rgb(ui, &mut pixel).changed() {
+            let mut pixel = [
+                albedo[0][0].0 as f32 / 255.0,
+                albedo[0][0].1 as f32 / 255.0,
+                albedo[0][0].2 as f32 / 255.0,
+            ];
+
+            if egui::widgets::color_picker::color_edit_button_rgb(ui, &mut pixel).changed() {
+                self.set_albedo(
+                    TextureLoader::from_memory_f32(&self.facade, &pixel, 1, 1)
+                        .unwrap()
+                        .into(),
+                );
+            }
+        } else if ui.button("reset").clicked() {
             self.set_albedo(
-                TextureLoader::from_memory_f32(&self.facade, &pixel, 1, 1)
+                TextureLoader::from_memory_f32(&self.facade, &[1.0; 3], 1, 1)
                     .unwrap()
                     .into(),
             );
+        }
+        if ui.button("select").clicked() {
+            if let Some(file) = rfd::FileDialog::new().pick_file() {
+                self.set_albedo(TextureLoader::from_fs(&self.facade, &file).unwrap().into());
+            }
         }
 
         // Metallic
-        let metallic: Vec<Vec<_>> = self.metallic.read();
-        let mut metallic = metallic[0][0].0;
-        if self.debug_slider(ui, "metallic", &mut metallic) {
-            self.set_metallic(
-                TextureLoader::from_memory_f32(&self.facade, &[metallic as f32 / 255.0; 3], 1, 1)
-                    .unwrap()
-                    .into(),
-            );
+        if let Some(texture) = self.debug_slider(ui, "metallic", &self.metallic, 0) {
+            self.set_metallic(texture.into());
         }
 
         // Roughness
-        let roughness: Vec<Vec<_>> = self.roughness.read();
-        let mut roughness = roughness[0][0].0;
-        if self.debug_slider(ui, "roughness", &mut roughness) {
-            self.set_roughness(
-                TextureLoader::from_memory_f32(&self.facade, &[roughness as f32 / 255.0; 3], 1, 1)
-                    .unwrap()
-                    .into(),
-            );
+        if let Some(texture) = self.debug_slider(ui, "roughness", &self.roughness, 0) {
+            self.set_roughness(texture.into());
         }
 
         // Ambient Occlusion
-        let ao: Vec<Vec<_>> = self.ao.read();
-        let mut ao = ao[0][0].0;
-        if self.debug_slider(ui, "ao", &mut ao) {
-            self.set_ao(
-                TextureLoader::from_memory_f32(&self.facade, &[ao as f32 / 255.0; 3], 1, 1)
-                    .unwrap()
-                    .into(),
-            );
+        if let Some(texture) = self.debug_slider(ui, "ao", &self.ao, 0) {
+            self.set_ao(texture.into());
         }
+
+        ui.label("normal");
+        if ui.button("select").clicked() {
+            if let Some(file) = rfd::FileDialog::new().pick_file() {
+                self.set_normal(TextureLoader::from_fs(&self.facade, &file).unwrap().into());
+            }
+        }
+        ui.separator();
     }
 
-    fn debug_slider(&self, ui: &mut Ui, label: &str, value: &mut u8) -> bool {
+    fn debug_slider(
+        &self,
+        ui: &mut Ui,
+        label: &str,
+        texture: &Texture2d,
+        chanel: usize,
+    ) -> Option<Texture2d> {
         ui.label(label);
+        let mut result = None;
 
-        let changed = ui.add(egui::widgets::Slider::new(value, 0..=255)).changed();
+        if texture.width() == 1 && texture.height() == 1 {
+            let pixels: Vec<Vec<_>> = texture.read();
+            let mut pixel = [pixels[0][0].0, pixels[0][0].1, pixels[0][0].2];
+            if ui
+                .add(egui::widgets::Slider::new(&mut pixel[chanel], 0..=255))
+                .changed()
+            {
+                result = TextureLoader::from_memory_f32(
+                    &self.facade,
+                    &[pixel[chanel] as f32 / 255.0; 3],
+                    1,
+                    1,
+                )
+                .ok();
+            }
+        } else if ui.button("reset").clicked() {
+            result = TextureLoader::from_memory_f32(&self.facade, &[1.0; 3], 1, 1).ok()
+        }
+
+        if ui.button("select").clicked() {
+            if let Some(file) = rfd::FileDialog::new().pick_file() {
+                result = TextureLoader::from_fs(&self.facade, &file).ok();
+            }
+        }
 
         ui.separator();
 
-        changed
+        result
     }
 }
 

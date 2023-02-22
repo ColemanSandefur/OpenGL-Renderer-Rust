@@ -27,6 +27,9 @@ impl Renderer {
     pub fn begin_scene(&mut self) -> RenderScene {
         return RenderScene::new(self);
     }
+    pub fn get_polygons(&self) -> u32 {
+        self.polygons
+    }
 }
 
 pub struct RenderEntry<'a> {

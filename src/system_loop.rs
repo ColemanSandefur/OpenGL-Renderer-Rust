@@ -45,6 +45,10 @@ impl SystemLoop {
         self.render_handlers.push(Box::new(event));
     }
 
+    pub fn subscribe_events(&mut self, event: impl FnMut(&Event<()>) + 'static) {
+        self.event_handlers.push(Box::new(event));
+    }
+
     pub fn get_egui_glium(&self) -> &EguiGlium {
         &self.egui_glium
     }

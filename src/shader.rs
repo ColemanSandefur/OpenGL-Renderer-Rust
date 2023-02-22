@@ -80,7 +80,13 @@ pub trait Shader: 'static {
 #[macro_export]
 macro_rules! insert_program {
     ($vertex:expr, $fragment:expr, $facade:expr) => {
-        crate::shader::compile_program($facade, &include_str!($vertex), &include_str!($fragment))
+        Program::from_source(
+            $facade,
+            &include_str!($vertex),
+            &include_str!($fragment),
+            None,
+        )
+        .expect(&format!("Error compiling shader"))
     };
 }
 

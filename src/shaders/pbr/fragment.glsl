@@ -92,8 +92,8 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 void main()
 {		
     vec3 albedo     = texture(albedo_map, TexCoords).rgb;
-    float metallic  = texture(metallic_map, TexCoords).r;
-    float roughness = texture(roughness_map, TexCoords).r;
+    float metallic  = texture(metallic_map, TexCoords).b;
+    float roughness = texture(roughness_map, TexCoords).g;
     float ao        = texture(ao_map, TexCoords).r;
 
     vec3 N = getNormalFromMap();
